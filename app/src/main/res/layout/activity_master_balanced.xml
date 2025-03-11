@@ -1,0 +1,55 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="16dp"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/tvIPmb"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />
+
+    <TextView
+        android:id="@+id/tvPortmb"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/tvIPmb"
+        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />
+
+    <TextView
+        android:id="@+id/tvConnectionStatusmb"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/tvPortmb"
+        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />
+
+    <TextView
+        android:id="@+id/tvMessagesmb"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/tvConnectionStatusmb"/>
+<!--        android:inputType="textMultiLine"-->
+<!--        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />-->
+
+    <!-- Add new Button for Reset or File Action -->
+
+    <Button
+        android:id="@+id/btnSendmb"
+        android:layout_width="206dp"
+        android:layout_height="92dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="99dp"
+        android:text="@string/send3"
+        tools:ignore="OnClick" />
+
+    <Button
+        android:id="@+id/btnResermb"
+        android:layout_width="208dp"
+        android:layout_height="88dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="7dp"
+        android:text="@string/reset3"
+        tools:ignore="OnClick" />
+</RelativeLayout>

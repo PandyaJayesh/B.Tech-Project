@@ -1,0 +1,20 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="20dp">
+
+    <Button
+        android:id="@+id/btnEqual"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/equal_partition" />
+
+    <Button
+        android:id="@+id/btnBalanced"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/balanced_partition"
+        android:layout_marginTop="20dp"/>
+</LinearLayout>

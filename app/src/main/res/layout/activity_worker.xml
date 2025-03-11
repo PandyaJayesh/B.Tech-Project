@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android = "http://schemas.android.com/apk/res/android"
+    xmlns:tools = "http://schemas.android.com/tools"
+    android:layout_width = "match_parent"
+    android:layout_height = "match_parent"
+    android:layout_margin = "16dp"
+    tools:context = ".MasterActivity">
+
+    <EditText
+        android:id="@+id/etIP"
+        android:layout_width="184dp"
+        android:layout_height="87dp"
+        android:autofillHints=""
+        android:hint="@string/ip_address"
+        android:inputType="text"
+        android:text="@string/_192_168_243_184" />
+
+    <EditText
+        android:id="@+id/etPort"
+        android:layout_width="187dp"
+        android:layout_height="91dp"
+        android:layout_below="@+id/etIP"
+        android:layout_marginTop="13dp"
+        android:autofillHints=""
+        android:hint="@string/port_no"
+        android:inputType="number"
+        android:text="@string/_8080" />
+
+    <Button
+        android:id="@+id/btnConnect"
+        android:layout_width="wrap_content"
+        android:layout_height="96dp"
+        android:layout_below="@+id/etPort"
+        android:layout_gravity="center"
+        android:layout_marginTop="16dp"
+        android:text="@string/connect_to_server" />
+
+    <TextView
+        android:id="@+id/tvMessages"
+        android:layout_width="match_parent"
+        android:layout_height="136dp"
+        android:layout_below="@+id/btnConnect"/>
+<!--        android:inputType="textMultiLine"-->
+<!--        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />-->
+
+<!--        <EditText-->
+<!--            android:id="@+id/etMessage"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_above="@+id/btnSend"-->
+<!--            android:hint="@string/enter_message"-->
+<!--            android:inputType="text" />-->
+<!--        <Button-->
+<!--            android:id = "@+id/btnSend"-->
+<!--            android:layout_width = "match_parent"-->
+<!--            android:layout_height = "wrap_content"-->
+<!--            android:layout_alignParentBottom = "true"-->
+<!--            android:text = "@string/send1" />-->
+</RelativeLayout>
+
