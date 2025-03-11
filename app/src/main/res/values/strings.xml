@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">WordCount</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="ip_address">IP-Address</string>
+    <string name="port_no">Port No</string>
+    <string name="_8080">8080</string>
+    <string name="_192_168_137_9">192.168.137.9</string>
+    <string name="connect_to_server">Connect To Server</string>
+    <string name="reset">RESET</string>
+    <string name="send">SEND</string>
+    <string name="enter_message">Enter Message</string>
+    <string name="send1">SEND</string>
+    <string name="start_as_master">Start as Master</string>
+    <string name="start_as_worker">Start as Worker</string>
+    <string name="_192_168_70_170">192.168.70.170</string>
+    <string name="equal_partition">Equal partition</string>
+    <string name="balanced_partition">Balanced partition</string>
+    <string name="send2">SEND</string>
+    <string name="reset1">RESET</string>
+    <string name="ip_address1">IP-Address</string>
+    <string name="_192_168_137_9_1">192.168.137.9</string>
+    <string name="port_no1">Port No</string>
+    <string name="_8080_1">8080</string>
+    <string name="connect_to_server_1">Connect To Server</string>
+    <string name="pick_file">PICK FILE</string>
+    <string name="send3">SEND</string>
+    <string name="reset3">RESET</string>
+    <string name="connect_to_server2">Connect To Server</string>
+    <string name="ip_address2">IP-Address</string>
+    <string name="_192_168_137_19923">192.168.137.199</string>
+    <string name="port_no23">Port No</string>
+    <string name="_8080_11">8080</string>
+    <string name="_192_168_243_184">192.168.243.184</string>
+</resources>
