@@ -33,4 +33,5 @@
     <string name="port_no23">Port No</string>
     <string name="_8080_11">8080</string>
     <string name="_192_168_243_184">192.168.243.184</string>
+    <string name="_192_168_137_104">192.168.137.104</string>
 </resources>

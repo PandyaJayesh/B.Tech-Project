@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
@@ -101,10 +102,20 @@ public class MasterActivity extends AppCompatActivity {
     }
 
 
-    private int getBatteryLevel() {
-        BatteryManager batteryManager = (BatteryManager) getSystemService(BATTERY_SERVICE);
-        return batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+    private float getBatteryLevel() {
+        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        Intent batteryStatus = registerReceiver(null, filter);
+
+        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+
+        if (level == -1 || scale == -1) {
+            return -1.0f; // Error case
+        }
+
+        return ((float) level / (float) scale) * 100.0f; // Returns detailed battery level
     }
+
 
 
     private void requestStoragePermissions() {
@@ -192,7 +203,7 @@ public class MasterActivity extends AppCompatActivity {
     private void sendFileToClients(String fileName) {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = getProcessCpuTime();
-        int batteryStart = getBatteryLevel();
+        float batteryStart = getBatteryLevel();
 //        tvMessages.append("Debug: 1\n");
         // **Partitioning**
         long partitionStartTime = System.currentTimeMillis();
@@ -253,11 +264,11 @@ public class MasterActivity extends AppCompatActivity {
         // **Final Stats**
         long totalEndTime = System.currentTimeMillis();
         long totalEndCpuTime = getProcessCpuTime();
-        int batteryEnd = getBatteryLevel();
+        float batteryEnd = getBatteryLevel();
 
         long totalTime = totalEndTime - totalStartTime;
         long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-        int batteryUsed = batteryStart - batteryEnd;
+        float batteryUsed = batteryStart - batteryEnd;
 //        tvMessages.append("Debug: 10\n");
         runOnUiThread(() -> {
             tvMessages.append("\n--- Master Performance Metrics ---\n");

@@ -13,7 +13,7 @@
         android:autofillHints=""
         android:hint="@string/ip_address2"
         android:inputType="text"
-        android:text="@string/_192_168_243_184" />
+        android:text="@string/_192_168_137_104" />
 
     <EditText
         android:id="@+id/etPortwb"
@@ -36,10 +36,10 @@
         android:text="@string/connect_to_server2" />
 
     <TextView
-        android:id = "@+id/tvMessageswb"
-        android:layout_width = "match_parent"
-        android:layout_height = "wrap_content"
-        android:layout_below = "@+id/btnConnectwb"/>
+        android:id="@+id/tvMessageswb"
+        android:layout_width="match_parent"
+        android:layout_height="392dp"
+        android:layout_below="@+id/btnConnectwb" />
 <!--        android:inputType = "textMultiLine"-->
 <!--        android:textAppearance = "@style/Base.TextAppearance.AppCompat.Medium" />-->
 
