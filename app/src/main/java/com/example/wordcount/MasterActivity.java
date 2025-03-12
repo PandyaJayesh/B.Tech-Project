@@ -4,31 +4,26 @@ import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
 
-import java.io.BufferedReader;
 import java.io.DataInputStream;
-import java.io.FileReader;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import android.net.Uri;
-import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
-import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -57,8 +52,6 @@ public class MasterActivity extends AppCompatActivity {
     public static String SERVER_IP = "";
     public static final int SERVER_PORT = 8080;
     Set<Socket> clientSockets = new HashSet<>(); // Set to store active client sockets
-    long timeTaken;
-    long startTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,40 +76,15 @@ public class MasterActivity extends AppCompatActivity {
         btnReset.setOnClickListener(v -> restartApp());
 
         btnSend.setOnClickListener(v -> {
-//            if (checkAndRequestPermissions()) {
-//                String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
-//                executorService.execute(() -> sendFileToClients(fileName));
-//            }
 
-//                    new SendFileTask().execute(file.getAbsolutePath());
-//            File file = new File(getExternalFilesDir(null), "testing.txt");
-//            tvMessages.append("File: " + file.getAbsolutePath() + "\n");
-//            executorService.execute(() -> sendFileToClients(file.getAbsolutePath()));
 
             String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
-//            tvMessages.append("File 1: " + fileName + "\n");
+
             executorService.execute(() -> sendFileToClients(fileName));
-//            tvMessages.append("File 2: " + fileName + "\n");
+
 
         });
     }
-
-
-    private float getBatteryLevel() {
-        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = registerReceiver(null, filter);
-
-        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-
-        if (level == -1 || scale == -1) {
-            return -1.0f; // Error case
-        }
-
-        return ((float) level / (float) scale) * 100.0f; // Returns detailed battery level
-    }
-
-
 
     private void requestStoragePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {  // Android 11+
@@ -146,46 +114,16 @@ public class MasterActivity extends AppCompatActivity {
         }
     }
 
-
-
-
-//    private boolean checkAndRequestPermissions() {
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-//                    ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-//
-//                // Request permissions (but do NOT return false immediately)
-//                ActivityCompat.requestPermissions(this, new String[]{
-//                        Manifest.permission.READ_EXTERNAL_STORAGE,
-//                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-//                }, REQUEST_CODE_STORAGE_PERMISSION);
-//
-////                tvMessages.append("Requesting permissions...\n");
-//                return false; // Indicates that permission is NOT yet granted
-//            }
-//        }
-////        tvMessages.append("Permissions already granted.\n");
-//        return true; // Permission is granted
-//    }
-
-
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
-            boolean allGranted = true;
             for (int result : grantResults) {
                 if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
                     break;
                 }
             }
-
-//            if (!allGranted) {
-//                tvMessages.append("Storage permission denied.\n");
-//                Toast.makeText(this, "Storage permission is required for file access.", Toast.LENGTH_LONG).show();
-//            }
         }
     }
 
@@ -202,19 +140,18 @@ public class MasterActivity extends AppCompatActivity {
 
     private void sendFileToClients(String fileName) {
         long totalStartTime = System.currentTimeMillis();
-        long totalStartCpuTime = getProcessCpuTime();
-        float batteryStart = getBatteryLevel();
-//        tvMessages.append("Debug: 1\n");
+        long totalStartCpuTime = Helpers.getProcessCpuTime();
+        float batteryStart = Helpers.getBatteryLevel(this);
+
         // **Partitioning**
         long partitionStartTime = System.currentTimeMillis();
-        long partitionStartCpuTime = getProcessCpuTime();
-//        tvMessages.append("Debug: 2\n");
+        long partitionStartCpuTime = Helpers.getProcessCpuTime();
+
         File file = new File(fileName);
         if (!file.exists()) {
             runOnUiThread(() -> tvMessages.append("File not found: " + fileName + "\n"));
             return;
         }
-//        tvMessages.append("Debug: 3\n");
         List<String> subfileNames;
         try {
             subfileNames = FileSplitter.splitTextFile(fileName, clientSockets.size());
@@ -222,54 +159,57 @@ public class MasterActivity extends AppCompatActivity {
             e.printStackTrace();
             return;
         }
-//        tvMessages.append("Debug: 4\n");
+
         long partitionEndTime = System.currentTimeMillis();
-        long partitionEndCpuTime = getProcessCpuTime();
+        long partitionEndCpuTime = Helpers.getProcessCpuTime();
         long partitionTime = partitionEndTime - partitionStartTime;
         long partitionCpuTime = partitionEndCpuTime - partitionStartCpuTime;
-//        tvMessages.append("Debug: 5\n");
+
         // **Sending Files**
         long sendStartTime = System.currentTimeMillis();
-        long sendStartCpuTime = getProcessCpuTime();
-//        tvMessages.append("Debug: 6\n");
-        long totalWordCount = 0;
+        long sendStartCpuTime = Helpers.getProcessCpuTime();
+
         int clientIndex = 0;
         for (Socket clientSocket : clientSockets) {
             try {
-                totalWordCount += sendSubfile(clientSocket, subfileNames.get(clientIndex));
+                sendSubfile(clientSocket, subfileNames.get(clientIndex));
                 clientIndex++;
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-//        tvMessages.append("Debug: 7\n");
+
 
         long sendEndTime = System.currentTimeMillis();
-        long sendEndCpuTime = getProcessCpuTime();
+        long sendEndCpuTime = Helpers.getProcessCpuTime();
         long sendTime = sendEndTime - sendStartTime;
         long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
-//        tvMessages.append("Debug: 8\n");
+
         // **Receiving Word Counts**
         long receiveStartTime = System.currentTimeMillis();
-        long receiveStartCpuTime = getProcessCpuTime();
+        long receiveStartCpuTime = Helpers.getProcessCpuTime();
 
 
-//        tvMessages.append("Debug: 9\n");
 
         long receiveEndTime = System.currentTimeMillis();
-        long receiveEndCpuTime = getProcessCpuTime();
+        long receiveEndCpuTime = Helpers.getProcessCpuTime();
         long receiveTime = receiveEndTime - receiveStartTime;
         long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
 
         // **Final Stats**
         long totalEndTime = System.currentTimeMillis();
-        long totalEndCpuTime = getProcessCpuTime();
-        float batteryEnd = getBatteryLevel();
+        long totalEndCpuTime = Helpers.getProcessCpuTime();
+        float batteryEnd = Helpers.getBatteryLevel(this);
 
         long totalTime = totalEndTime - totalStartTime;
         long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-        float batteryUsed = batteryStart - batteryEnd;
-//        tvMessages.append("Debug: 10\n");
+        float batteryUsed;
+        if(batteryEnd == -1 || batteryStart == -1) batteryUsed = -1;
+        else {
+            batteryUsed = batteryStart - batteryEnd;
+        }
+
+
         runOnUiThread(() -> {
             tvMessages.append("\n--- Master Performance Metrics ---\n");
             tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuTime + " ms\n");
@@ -278,7 +218,7 @@ public class MasterActivity extends AppCompatActivity {
             tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
             tvMessages.append("Battery Used: " + batteryUsed + "%\n");
         });
-//        tvMessages.append("Debug: 11\n");
+
     }
 
 
@@ -378,19 +318,6 @@ public class MasterActivity extends AppCompatActivity {
         }
     }
 
-    private long getProcessCpuTime() {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader("/proc/self/stat"));
-            String[] stats = reader.readLine().split(" ");
-            reader.close();
-            long utime = Long.parseLong(stats[13]);  // User mode time
-            long stime = Long.parseLong(stats[14]);  // Kernel mode time
-            return utime + stime;  // Total CPU time used
-        } catch (IOException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
 
 
 }

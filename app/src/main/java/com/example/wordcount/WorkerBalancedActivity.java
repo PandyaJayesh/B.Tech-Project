@@ -1,37 +1,24 @@
 package com.example.wordcount;
 
 import androidx.appcompat.app.AppCompatActivity;
-
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.os.BatteryManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;  // Use DataOutputStream instead of WriterOutputStream
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class WorkerBalancedActivity extends AppCompatActivity {
 
@@ -65,31 +52,6 @@ public class WorkerBalancedActivity extends AppCompatActivity {
             btnConnect.setEnabled(false);
         });
     }
-
-    //    private void connectToServer() {
-//        Thread1 = new Thread(() -> {
-//            try (Socket socket = new Socket(SERVER_IP, SERVER_PORT)) {
-//                OutputStream outputStream = socket.getOutputStream();
-//                dos = new DataOutputStream(outputStream);  // Use DataOutputStream
-//                dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-//
-//                runOnUiThread(() -> {
-//                    tvMessages.setText("Connected ");
-//                    connected = true;
-//                });
-//
-//                // Measure computation speed and send it to the server immediately after connection
-//                measureAndSendComputationSpeed();
-//                // Receive file from server
-//                receiveFileFromServer();
-//
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//                Log.e("CLIENT", "Connection error: " + e.getMessage());
-//            }
-//        });
-//        Thread1.start();
-//    }
     private void connectToServer() {
         Thread1 = new Thread(() -> {
             try (Socket socket = new Socket(SERVER_IP, SERVER_PORT)) {
@@ -194,26 +156,14 @@ public class WorkerBalancedActivity extends AppCompatActivity {
 
 
 
-    private float getBatteryLevel() {
-        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = registerReceiver(null, filter);
 
-        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-
-        if (level == -1 || scale == -1) {
-            return -1.0f; // Error case
-        }
-
-        return ((float) level / (float) scale) * 100.0f; // Returns detailed battery level
-    }
     private void receiveFileFromServer() {
         long totalStartTime = System.currentTimeMillis();
-        long totalStartCpuTime = getProcessCpuTime();
-        float batteryStart = getBatteryLevel();
+        long totalStartCpuTime = Helpers.getProcessCpuTime();
+        float batteryStart = Helpers.getBatteryLevel(this);
         try {
             long receiveStartTime = System.currentTimeMillis();
-            long receiveStartCpuTime = getProcessCpuTime();
+            long receiveStartCpuTime = Helpers.getProcessCpuTime();
             // Receive number of files
             int numberOfFiles = dis.readInt();
             Log.d("CLIENT", "Number of files to receive: " + numberOfFiles);
@@ -246,7 +196,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 Log.d("CLIENT", "File received: " + fileToUpdate.getAbsolutePath());
 
                 long receiveEndTime = System.currentTimeMillis();
-                long receiveEndCpuTime = getProcessCpuTime();
+                long receiveEndCpuTime = Helpers.getProcessCpuTime();
                 long receiveTime = receiveEndTime - receiveStartTime;
                 long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
 
@@ -255,17 +205,17 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 WordCount wordCount = new WordCount();
 
                 long processStartTime = System.currentTimeMillis();
-                long processStartCpuTime = getProcessCpuTime();
+                long processStartCpuTime = Helpers.getProcessCpuTime();
 
                 int wordCountResult = wordCount.countWords(fileToUpdate.getAbsolutePath());
                 long processEndTime = System.currentTimeMillis();
-                long processEndCpuTime = getProcessCpuTime();
+                long processEndCpuTime = Helpers.getProcessCpuTime();
                 long processTime = processEndTime - processStartTime;
                 long processCpuTime = processEndCpuTime - processStartCpuTime;
 
                 // **Sending Result**
                 long sendStartTime = System.currentTimeMillis();
-                long sendStartCpuTime = getProcessCpuTime();
+                long sendStartCpuTime = Helpers.getProcessCpuTime();
 
                 // Display results on UI
 
@@ -274,14 +224,14 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 sendResultsToServer(wordCountResult, processCpuTime);
 
                 long sendEndTime = System.currentTimeMillis();
-                long sendEndCpuTime = getProcessCpuTime();
+                long sendEndCpuTime = Helpers.getProcessCpuTime();
                 long sendTime = sendEndTime - sendStartTime;
                 long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
 
                 // **Final Stats**
                 long totalEndTime = System.currentTimeMillis();
-                long totalEndCpuTime = getProcessCpuTime();
-                float batteryEnd = getBatteryLevel();
+                long totalEndCpuTime = Helpers.getProcessCpuTime();
+                float batteryEnd = Helpers.getBatteryLevel(this);
 
                 long totalTime = totalEndTime - totalStartTime;
                 long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
@@ -306,19 +256,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
         }
     }
 
-    private long getProcessCpuTime() {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader("/proc/self/stat"));
-            String[] stats = reader.readLine().split(" ");
-            reader.close();
-            long utime = Long.parseLong(stats[13]);  // User mode time
-            long stime = Long.parseLong(stats[14]);  // Kernel mode time
-            return utime + stime;  // Total CPU time used
-        } catch (IOException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
+
 
     private void sendResultsToServer(int wordCountResult, long computationTime) {
         try {

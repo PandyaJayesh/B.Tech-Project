@@ -4,16 +4,11 @@ import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
-import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -24,7 +19,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -35,18 +29,12 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -80,7 +68,6 @@ public class MasterBalancedActivity extends AppCompatActivity {
         tvIP = findViewById(R.id.tvIPmb);
         tvPort = findViewById(R.id.tvPortmb);
         tvMessages = findViewById(R.id.tvMessagesmb);
-//        etMessage = findViewById(R.id.etMessage);
         btnSend = findViewById(R.id.btnSendmb);
         btnReset = findViewById(R.id.btnResermb);
         SERVER_IP = getLocalIpAddress();
@@ -101,15 +88,8 @@ public class MasterBalancedActivity extends AppCompatActivity {
                 executorService.execute(() -> sendFileToClients(fileName));
 
 //                if (checkAndRequestPermissions()) {
-////                    String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt"; // Replace with your actual file
-////                    new SendFileTask().execute(fileName);
-//
-////                    File file = new File(getExternalFilesDir(null), "testing.txt");
-//////                    new SendFileTask().execute(file.getAbsolutePath());
-////                    executorService.execute(() -> sendFileToClients(file.getAbsolutePath()));
-//
-//                    String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
-//                    executorService.execute(() -> sendFileToClients(fileName));
+//                   String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
+//                  executorService.execute(() -> sendFileToClients(fileName));
 //                }
             }
         });
@@ -131,7 +111,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CODE_STORAGE_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -151,62 +131,20 @@ public class MasterBalancedActivity extends AppCompatActivity {
         System.exit(0);
     }
 
-//    private class SendFileTask extends AsyncTask<String, Void, Void> {
-//        @Override
-//        protected Void doInBackground(String... params) {
-//            sendFileToClients(params[0]);
-//            return null;
-//        }
-//    }
-
-//    private void sendFileToClients(String fileName) {
-//        startTime = System.currentTimeMillis();
-//        File file = new File(fileName);
-//        if (!file.exists()) {
-//            runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    tvMessages.append("File not found: " + fileName + "\n");
-//                }
-//            });
-//            return;
-//        }
-//
-//        try {
-//            // Calculate number of clients and split file accordingly
-//            int numberOfClients = clientSockets.size();
-//            List<String> subfileNames = FileSplitter.splitTextFile(fileName, numberOfClients);
-//
-//            // Iterate over each client socket and send corresponding subfile
-//            int clientIndex = 0;
-//            for (Socket clientSocket : clientSockets) {
-//                String subfileName = subfileNames.get(clientIndex);
-//                sendSubfile(clientSocket, subfileName);
-//                clientIndex++;
-//            }
-//            long endTime = System.currentTimeMillis();
-//            timeTaken = endTime - startTime;
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
 
 
     private void sendFileToClients(String fileName) {
         long totalStartTime = System.currentTimeMillis();
-        long totalStartCpuTime = getProcessCpuTime();
-        float batteryStart = getBatteryLevel();
-//        tvMessages.append("Debug: 1\n");
+        long totalStartCpuTime = Helpers.getProcessCpuTime();
+        float batteryStart = Helpers.getBatteryLevel(this);
         // **Partitioning**
         long partitionStartTime = System.currentTimeMillis();
-        long partitionStartCpuTime = getProcessCpuTime();
-//        tvMessages.append("Debug: 2\n");
+        long partitionStartCpuTime = Helpers.getProcessCpuTime();
         File file = new File(fileName);
         if (!file.exists()) {
             runOnUiThread(() -> tvMessages.append("File not found: " + fileName + "\n"));
             return;
         }
-//        tvMessages.append("Debug: 3\n");
         List<String> subfileNames;
         try {
             subfileNames = FileSplitter.splitTextFileBySize(fileName, computingCapacity);
@@ -214,54 +152,50 @@ public class MasterBalancedActivity extends AppCompatActivity {
             e.printStackTrace();
             return;
         }
-//        tvMessages.append("Debug: 4\n");
         long partitionEndTime = System.currentTimeMillis();
-        long partitionEndCpuTime = getProcessCpuTime();
+        long partitionEndCpuTime = Helpers.getProcessCpuTime();
         long partitionTime = partitionEndTime - partitionStartTime;
         long partitionCpuTime = partitionEndCpuTime - partitionStartCpuTime;
-//        tvMessages.append("Debug: 5\n");
         // **Sending Files**
         long sendStartTime = System.currentTimeMillis();
-        long sendStartCpuTime = getProcessCpuTime();
-//        tvMessages.append("Debug: 6\n");
-        long totalWordCount = 0;
+        long sendStartCpuTime = Helpers.getProcessCpuTime();
         int clientIndex = 0;
         for (Socket clientSocket : clientSockets) {
             try {
-                totalWordCount += sendSubfile(clientSocket, subfileNames.get(clientIndex));
+                sendSubfile(clientSocket, subfileNames.get(clientIndex));
                 clientIndex++;
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-//        tvMessages.append("Debug: 7\n");
+
 
         long sendEndTime = System.currentTimeMillis();
-        long sendEndCpuTime = getProcessCpuTime();
+        long sendEndCpuTime = Helpers.getProcessCpuTime();
         long sendTime = sendEndTime - sendStartTime;
         long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
-//        tvMessages.append("Debug: 8\n");
+
         // **Receiving Word Counts**
         long receiveStartTime = System.currentTimeMillis();
-        long receiveStartCpuTime = getProcessCpuTime();
+        long receiveStartCpuTime = Helpers.getProcessCpuTime();
 
 
-//        tvMessages.append("Debug: 9\n");
+
 
         long receiveEndTime = System.currentTimeMillis();
-        long receiveEndCpuTime = getProcessCpuTime();
+        long receiveEndCpuTime = Helpers.getProcessCpuTime();
         long receiveTime = receiveEndTime - receiveStartTime;
         long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
 
         // **Final Stats**
         long totalEndTime = System.currentTimeMillis();
-        long totalEndCpuTime = getProcessCpuTime();
-        float batteryEnd = getBatteryLevel();
+        long totalEndCpuTime = Helpers.getProcessCpuTime();
+        float batteryEnd = Helpers.getBatteryLevel(this);
 
         long totalTime = totalEndTime - totalStartTime;
         long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
         float batteryUsed = batteryStart - batteryEnd;
-//        tvMessages.append("Debug: 10\n");
+
         runOnUiThread(() -> {
             tvMessages.append("\n--- Master Performance Metrics ---\n");
             tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuTime + " ms\n");
@@ -270,43 +204,19 @@ public class MasterBalancedActivity extends AppCompatActivity {
             tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
             tvMessages.append("Battery Used: " + batteryUsed + "%\n");
         });
-//        tvMessages.append("Debug: 11\n");
-    }
 
-    private float getBatteryLevel() {
-        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = registerReceiver(null, filter);
-
-        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-
-        if (level == -1 || scale == -1) {
-            return -1.0f; // Error case
-        }
-
-        return ((float) level / (float) scale) * 100.0f; // Returns detailed battery level
-    }
-
-    private long getProcessCpuTime() {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader("/proc/self/stat"));
-            String[] stats = reader.readLine().split(" ");
-            reader.close();
-            long utime = Long.parseLong(stats[13]);  // User mode time
-            long stime = Long.parseLong(stats[14]);  // Kernel mode time
-            return utime + stime;  // Total CPU time used
-        } catch (IOException e) {
-            e.printStackTrace();
-            return 0;
-        }
     }
 
 
-    private long sendSubfile(Socket clientSocket, String subfileName) throws IOException {
+
+
+
+
+    private void sendSubfile(Socket clientSocket, String subfileName) throws IOException {
         File file = new File(subfileName);
         if (!file.exists()) {
             runOnUiThread(() -> tvMessages.append("File not found: " + subfileName + "\n"));
-            return -1;
+            return;
         }
 
         byte[] buffer = new byte[10000];
@@ -334,8 +244,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
         runOnUiThread(() -> tvMessages.append("File sent to client: "
                 + clientSocket.getInetAddress().getHostAddress() + "\n"
                 + "Worker Response: " + workerResponse + "\n"));
-        String[] parts = workerResponse.split(" ");
-        return Long.parseLong(parts[3]); // Extract the 4th word (index 3)
+
     }
 
     private String getLocalIpAddress() {
@@ -368,7 +277,6 @@ public class MasterBalancedActivity extends AppCompatActivity {
         return "No IPv4 Address";
     }
 
-    private PrintWriter output;
     private BufferedReader input;
 
     class Thread1 implements Runnable {
@@ -391,7 +299,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
                     if (clientSockets.add(socket)) {
                         // New client connected
                         updateClientCountUI(clientSockets.size()); // Update UI with client count
-                        output = new PrintWriter(socket.getOutputStream(), true);
+                        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
                         input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                         runOnUiThread(new Runnable() {
                             @Override
@@ -480,27 +388,4 @@ public class MasterBalancedActivity extends AppCompatActivity {
             return ip;
         }
     }
-
-
-//    class Thread3 implements Runnable {
-//        private String message;
-//
-//        Thread3(String message) {
-//            this.message = message;
-//        }
-//
-//        @Override
-//        public void run() {
-//            output.println(message);
-//            runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    tvMessages.append("server: " + message + " ");
-////                    etMessage.setText("");
-//                }
-//            });
-//        }
-//
-//
-//    }
 }

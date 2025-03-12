@@ -60,8 +60,7 @@ public class WorkerActivity extends AppCompatActivity {
         etIP = findViewById(R.id.etIP);
         etPort = findViewById(R.id.etPort);
         tvMessages = findViewById(R.id.tvMessages);
-//        etMessage = findViewById(R.id.etMessage);
-//        btnSend = findViewById(R.id.btnSend);
+
 
 
         Button btnConnect = findViewById(R.id.btnConnect);
@@ -82,32 +81,10 @@ public class WorkerActivity extends AppCompatActivity {
 
             }
         });
-
-//        btnSend.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                String message = etMessage.getText().toString().trim();
-//                if (!message.isEmpty()) {
-//                    sendMessageToServer(message);
-//                }
-//            }
-//        });
     }
 
 
-    private float getBatteryLevel() {
-        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = registerReceiver(null, filter);
 
-        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-
-        if (level == -1 || scale == -1) {
-            return -1.0f; // Error case
-        }
-
-        return ((float) level / (float) scale) * 100.0f; // Returns detailed battery level
-    }
 
 
     private void connectToServer() {
@@ -169,29 +146,6 @@ public class WorkerActivity extends AppCompatActivity {
 
 
 
-//    private void sendMessageToServer(final String message) {
-//        Thread thread = new Thread(new Runnable() {
-//            @Override
-//            public void run() {
-//                try {
-//                    OutputStreamWriter writer = new OutputStreamWriter(output, "UTF-8");
-//                    writer.write(message + "\n");
-//                    writer.flush();
-//                    runOnUiThread(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            tvMessages.append("client: " + message + "\n");
-//                            etMessage.setText("");
-//                        }
-//                    });
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        });
-//        thread.start();
-//    }
-
     private void sendMessageToServer(final String message) {
         if (message.isEmpty()) return;
 
@@ -217,15 +171,15 @@ public class WorkerActivity extends AppCompatActivity {
 
     private void receiveFileFromServer(Socket socket) {
         long totalStartTime = System.currentTimeMillis();
-        long totalStartCpuTime = getProcessCpuTime();
-        float batteryStart = getBatteryLevel();
+        long totalStartCpuTime = Helpers.getProcessCpuTime();
+        float batteryStart = Helpers.getBatteryLevel(this);
 
         try {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 
             // **Receiving File**
             long receiveStartTime = System.currentTimeMillis();
-            long receiveStartCpuTime = getProcessCpuTime();
+            long receiveStartCpuTime = Helpers.getProcessCpuTime();
 
             int numberOfFiles = dis.readInt();
             Log.d("CLIENT", "Number of files to receive: " + numberOfFiles);
@@ -256,13 +210,13 @@ public class WorkerActivity extends AppCompatActivity {
             }
 
             long receiveEndTime = System.currentTimeMillis();
-            long receiveEndCpuTime = getProcessCpuTime();
+            long receiveEndCpuTime = Helpers.getProcessCpuTime();
             long receiveTime = receiveEndTime - receiveStartTime;
             long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
 
             // **Processing Word Count**
             long processStartTime = System.currentTimeMillis();
-            long processStartCpuTime = getProcessCpuTime();
+            long processStartCpuTime = Helpers.getProcessCpuTime();
 
             int ans = 0;
             if (fileToUpdate != null) {
@@ -271,25 +225,25 @@ public class WorkerActivity extends AppCompatActivity {
             }
 
             long processEndTime = System.currentTimeMillis();
-            long processEndCpuTime = getProcessCpuTime();
+            long processEndCpuTime = Helpers.getProcessCpuTime();
             long processTime = processEndTime - processStartTime;
             long processCpuTime = processEndCpuTime - processStartCpuTime;
 
             // **Sending Result**
             long sendStartTime = System.currentTimeMillis();
-            long sendStartCpuTime = getProcessCpuTime();
+            long sendStartCpuTime = Helpers.getProcessCpuTime();
 
             sendMessageToServer("Word Count is: " + ans + " \n");
 
             long sendEndTime = System.currentTimeMillis();
-            long sendEndCpuTime = getProcessCpuTime();
+            long sendEndCpuTime = Helpers.getProcessCpuTime();
             long sendTime = sendEndTime - sendStartTime;
             long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
 
             // **Final Stats**
             long totalEndTime = System.currentTimeMillis();
-            long totalEndCpuTime = getProcessCpuTime();
-            float batteryEnd = getBatteryLevel();
+            long totalEndCpuTime = Helpers.getProcessCpuTime();
+            float batteryEnd = Helpers.getBatteryLevel(this);
 
             long totalTime = totalEndTime - totalStartTime;
             long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
@@ -310,19 +264,7 @@ public class WorkerActivity extends AppCompatActivity {
         }
     }
 
-    private long getProcessCpuTime() {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader("/proc/self/stat"));
-            String[] stats = reader.readLine().split(" ");
-            reader.close();
-            long utime = Long.parseLong(stats[13]);  // User mode time
-            long stime = Long.parseLong(stats[14]);  // Kernel mode time
-            return utime + stime;  // Total CPU time used
-        } catch (IOException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
+
 
 
 }

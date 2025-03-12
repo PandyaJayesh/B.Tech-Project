@@ -2,10 +2,8 @@ package com.example.wordcount;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.Manifest;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -25,20 +23,14 @@ public class EqualActivity extends AppCompatActivity {
 
 
 
-        btnMaster.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(EqualActivity.this, MasterActivity.class);
-                startActivity(intent);
-            }
+        btnMaster.setOnClickListener(v -> {
+            Intent intent = new Intent(EqualActivity.this, MasterActivity.class);
+            startActivity(intent);
         });
 
-        btnWorker.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(EqualActivity.this, WorkerActivity.class);
-                startActivity(intent);
-            }
+        btnWorker.setOnClickListener(v -> {
+            Intent intent = new Intent(EqualActivity.this, WorkerActivity.class);
+            startActivity(intent);
         });
     }
 }
