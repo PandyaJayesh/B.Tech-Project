@@ -248,10 +248,10 @@ public class WorkerActivity extends AppCompatActivity {
 
             runOnUiThread(() -> {
                 tvMessages.append("\n--- Worker Performance Metrics ---\n");
-                tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
+                //tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
                 tvMessages.append("Processing Time: " + processTime + " ms, CPU: " + processCpuTime + " ms\n");
-                tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
-                tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
+                //tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
+                //tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
                 tvMessages.append("Battery Used: " + batteryUsed + "%\n");
             });
             if (fileToUpdate != null && fileToUpdate.exists()) {

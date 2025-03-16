@@ -42,6 +42,12 @@ public class MasterActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(); // ExecutorService for background tasks
     ServerSocket serverSocket;
+    long sendingStart = 0;
+    long sendingEnd = 0;
+    long sending = 0;
+    long sendingStartCPU = 0;
+    long sendingEndCPU = 0;
+    long sendingCPU = 0;
     Thread Thread1 = null;
     TextView tvIP, tvPort;
     TextView tvMessages;
@@ -195,8 +201,8 @@ public class MasterActivity extends AppCompatActivity {
 
         long receiveTime = System.currentTimeMillis();
         long receiveCpuTime = Helpers.getProcessCpuTime();
-        long taskTime = receiveTime - sendStartTime;
-        long taskCpuTime = receiveCpuTime - sendStartCpuTime;
+        long taskTime = receiveTime - sendStartTime - sending;
+        long taskCpuTime = receiveCpuTime - sendStartCpuTime - sendingCPU;
 
 
         // **Final Stats**
@@ -213,6 +219,7 @@ public class MasterActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             tvMessages.append("\n--- Master Performance Metrics ---\n");
             tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuTime + " ms\n");
+            tvMessages.append("Sending Time: " + sending + " ms, CPU: " + sendingCPU + " ms\n");
             tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTime + " ms\n");
             tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
             tvMessages.append("Battery Used: " + batteryUsed + "%\n");
@@ -235,6 +242,8 @@ public class MasterActivity extends AppCompatActivity {
         long fileSize = file.length();
         DataOutputStream dos = new DataOutputStream(clientSocket.getOutputStream());
 
+        sendingStart = System.currentTimeMillis();
+        sendingStartCPU = Helpers.getProcessCpuTime();
         dos.writeInt(1);  // Send number of files
         dos.writeLong(fileSize); // Send file size
         dos.writeUTF(file.getName()); // Send file name
@@ -245,6 +254,12 @@ public class MasterActivity extends AppCompatActivity {
         }
         dos.flush();
         bis.close();
+        sendingEnd = System.currentTimeMillis();
+        sendingEndCPU = Helpers.getProcessCpuTime();;
+
+        sending = sendingEnd - sendingStart;
+        sendingCPU = sendingEndCPU - sendingStartCPU;
+
         runOnUiThread(() -> tvMessages.append("File sent to client: "
                 + clientSocket.getInetAddress().getHostAddress() + "\n"));
         // **🔹 NEW: Read the response from the Worker**
