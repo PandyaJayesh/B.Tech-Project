@@ -254,6 +254,10 @@ public class WorkerActivity extends AppCompatActivity {
                 tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
                 tvMessages.append("Battery Used: " + batteryUsed + "%\n");
             });
+            if (fileToUpdate != null && fileToUpdate.exists()) {
+                boolean deleted = fileToUpdate.delete();
+                Log.d("CLIENT", "File deleted: " + deleted);
+            }
 
         } catch (IOException e) {
             e.printStackTrace();

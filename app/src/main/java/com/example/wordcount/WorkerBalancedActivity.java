@@ -244,6 +244,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
             Log.d("CLIENT", "Number of files to receive: " + numberOfFiles);
 
             // Receive files
+            File fileToUpdate = null;
             for (int i = 0; i < numberOfFiles; i++) {
                 long fileSize = dis.readLong();  // Use readLong to read file size (use readInt if it's an integer size)
                 String fileName = dis.readUTF();
@@ -255,7 +256,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                     Log.e("CLIENT", "Failed to access external files directory.");
                     return;
                 }
-                File fileToUpdate = new File(directory, fileName);
+                fileToUpdate = new File(directory, fileName);
                 FileOutputStream fos = new FileOutputStream(fileToUpdate);
 
                 // Read and write file chunks
@@ -296,7 +297,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
 
 
                 // Send results back to server
-                sendResultsToServer(wordCountResult, processCpuTime,socket.getInetAddress().getHostAddress());
+                sendResultsToServer(wordCountResult, processCpuTime, socket.getInetAddress().getHostAddress());
 
                 long sendEndTime = System.currentTimeMillis();
                 long sendEndCpuTime = Helpers.getProcessCpuTime();
@@ -312,8 +313,9 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
                 float batteryUsed = batteryStart - batteryEnd;
 
+                File finalFileToUpdate = fileToUpdate;
                 runOnUiThread(() -> {
-                    tvMessages.append("File received: " + fileToUpdate.getAbsolutePath() + "\n");
+                    tvMessages.append("File received: " + finalFileToUpdate.getAbsolutePath() + "\n");
                     tvMessages.append("Word Count: " + wordCountResult + ", Time: " + processCpuTime + " ms\n");
 
                     tvMessages.append("\n--- Worker Performance Metrics ---\n");
@@ -323,6 +325,11 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                     tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
                     tvMessages.append("Battery Used: " + batteryUsed + "%\n");
                 });
+            }
+
+            if (fileToUpdate != null && fileToUpdate.exists()) {
+                boolean deleted = fileToUpdate.delete();
+                Log.d("CLIENT", "File deleted: " + deleted);
             }
 
         } catch (IOException e) {
