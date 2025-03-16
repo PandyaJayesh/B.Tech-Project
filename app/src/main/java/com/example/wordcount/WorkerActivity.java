@@ -3,39 +3,27 @@ package com.example.wordcount;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.os.BatteryManager;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Looper;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class WorkerActivity extends AppCompatActivity {
 
@@ -43,8 +31,7 @@ public class WorkerActivity extends AppCompatActivity {
     EditText etIP, etPort;
     TextView tvMessages;
     Boolean connected = false;
-    EditText etMessage;
-    Button btnSend;
+    Socket socket;
     String SERVER_IP;
     int SERVER_PORT;
     OutputStream output;
@@ -58,76 +45,74 @@ public class WorkerActivity extends AppCompatActivity {
         etIP = findViewById(R.id.etIP);
         etPort = findViewById(R.id.etPort);
         tvMessages = findViewById(R.id.tvMessages);
-//        etMessage = findViewById(R.id.etMessage);
-//        btnSend = findViewById(R.id.btnSend);
+
 
 
         Button btnConnect = findViewById(R.id.btnConnect);
 
-        btnConnect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        Button btnReset = findViewById(R.id.btnReset);
 
-                tvMessages.setText("");
-                SERVER_IP = etIP.getText().toString().trim();
-                SERVER_PORT = Integer.parseInt(etPort.getText().toString().trim());
+        btnReset.setOnClickListener(v -> restartApp());
 
-                connectToServer();
+        btnConnect.setOnClickListener(v -> {
 
-                btnConnect.setEnabled(false);
+            tvMessages.setText("");
+            SERVER_IP = etIP.getText().toString().trim();
+            SERVER_PORT = Integer.parseInt(etPort.getText().toString().trim());
+
+            connectToServer();
+
+            btnConnect.setEnabled(false);
 
 
 
-            }
         });
-
-//        btnSend.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                String message = etMessage.getText().toString().trim();
-//                if (!message.isEmpty()) {
-//                    sendMessageToServer(message);
-//                }
-//            }
-//        });
     }
 
 
-    private int getBatteryLevel() {
-        BatteryManager batteryManager = (BatteryManager) getSystemService(BATTERY_SERVICE);
-        return batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+    public void restartApp() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+                socket = null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Restart the activity
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
     }
 
 
     private void connectToServer() {
-        Thread1 = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Ensure Wi-Fi is connected
-                    if (!isWiFiConnected()) {
-                        runOnUiThread(() -> tvMessages.append("Please connect to Wi-Fi before starting.\n"));
-                        return;
-                    }
-
-                    // Try connecting to the server
-                    Socket socket = new Socket(SERVER_IP, SERVER_PORT);
-                    output = socket.getOutputStream();
-                    input = socket.getInputStream();
-
-                    // Ensure UI updates work
-                    Looper.prepare();
-                    runOnUiThread(() -> {
-                        tvMessages.setText("Connected ");
-                        connected = true;
-                    });
-
-                    // Start listening for incoming files from the server
-                    receiveFileFromServer(socket);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    runOnUiThread(() -> tvMessages.append("Connection failed: " + e.getMessage() + "\n"));
+        Thread1 = new Thread(() -> {
+            try {
+                // Ensure Wi-Fi is connected
+                if (!isWiFiConnected()) {
+                    runOnUiThread(() -> tvMessages.append("Please connect to Wi-Fi before starting.\n"));
+                    return;
                 }
+
+                // Try connecting to the server
+                socket = new Socket(SERVER_IP, SERVER_PORT);
+                output = socket.getOutputStream();
+                input = socket.getInputStream();
+
+                // Ensure UI updates work
+                Looper.prepare();
+                runOnUiThread(() -> {
+                    tvMessages.setText("Connected ");
+                    connected = true;
+                });
+
+                // Start listening for incoming files from the server
+                receiveFileFromServer(socket);
+            } catch (IOException e) {
+                e.printStackTrace();
+                runOnUiThread(() -> tvMessages.append("Connection failed: " + e.getMessage() + "\n"));
             }
         });
         Thread1.start();
@@ -158,29 +143,6 @@ public class WorkerActivity extends AppCompatActivity {
 
 
 
-//    private void sendMessageToServer(final String message) {
-//        Thread thread = new Thread(new Runnable() {
-//            @Override
-//            public void run() {
-//                try {
-//                    OutputStreamWriter writer = new OutputStreamWriter(output, "UTF-8");
-//                    writer.write(message + "\n");
-//                    writer.flush();
-//                    runOnUiThread(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            tvMessages.append("client: " + message + "\n");
-//                            etMessage.setText("");
-//                        }
-//                    });
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        });
-//        thread.start();
-//    }
-
     private void sendMessageToServer(final String message) {
         if (message.isEmpty()) return;
 
@@ -206,15 +168,15 @@ public class WorkerActivity extends AppCompatActivity {
 
     private void receiveFileFromServer(Socket socket) {
         long totalStartTime = System.currentTimeMillis();
-        long totalStartCpuTime = getProcessCpuTime();
-        int batteryStart = getBatteryLevel();
+        long totalStartCpuTime = Helpers.getProcessCpuTime();
+        float batteryStart = Helpers.getBatteryLevel(this);
 
         try {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
 
             // **Receiving File**
             long receiveStartTime = System.currentTimeMillis();
-            long receiveStartCpuTime = getProcessCpuTime();
+            long receiveStartCpuTime = Helpers.getProcessCpuTime();
 
             int numberOfFiles = dis.readInt();
             Log.d("CLIENT", "Number of files to receive: " + numberOfFiles);
@@ -245,13 +207,13 @@ public class WorkerActivity extends AppCompatActivity {
             }
 
             long receiveEndTime = System.currentTimeMillis();
-            long receiveEndCpuTime = getProcessCpuTime();
+            long receiveEndCpuTime = Helpers.getProcessCpuTime();
             long receiveTime = receiveEndTime - receiveStartTime;
             long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
 
             // **Processing Word Count**
             long processStartTime = System.currentTimeMillis();
-            long processStartCpuTime = getProcessCpuTime();
+            long processStartCpuTime = Helpers.getProcessCpuTime();
 
             int ans = 0;
             if (fileToUpdate != null) {
@@ -260,29 +222,29 @@ public class WorkerActivity extends AppCompatActivity {
             }
 
             long processEndTime = System.currentTimeMillis();
-            long processEndCpuTime = getProcessCpuTime();
+            long processEndCpuTime = Helpers.getProcessCpuTime();
             long processTime = processEndTime - processStartTime;
             long processCpuTime = processEndCpuTime - processStartCpuTime;
 
             // **Sending Result**
             long sendStartTime = System.currentTimeMillis();
-            long sendStartCpuTime = getProcessCpuTime();
+            long sendStartCpuTime = Helpers.getProcessCpuTime();
 
             sendMessageToServer("Word Count is: " + ans + " \n");
 
             long sendEndTime = System.currentTimeMillis();
-            long sendEndCpuTime = getProcessCpuTime();
+            long sendEndCpuTime = Helpers.getProcessCpuTime();
             long sendTime = sendEndTime - sendStartTime;
             long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
 
             // **Final Stats**
             long totalEndTime = System.currentTimeMillis();
-            long totalEndCpuTime = getProcessCpuTime();
-            int batteryEnd = getBatteryLevel();
+            long totalEndCpuTime = Helpers.getProcessCpuTime();
+            float batteryEnd = Helpers.getBatteryLevel(this);
 
             long totalTime = totalEndTime - totalStartTime;
             long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-            int batteryUsed = batteryStart - batteryEnd;
+            float batteryUsed = batteryStart - batteryEnd;
 
             runOnUiThread(() -> {
                 tvMessages.append("\n--- Worker Performance Metrics ---\n");
@@ -299,19 +261,7 @@ public class WorkerActivity extends AppCompatActivity {
         }
     }
 
-    private long getProcessCpuTime() {
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader("/proc/self/stat"));
-            String[] stats = reader.readLine().split(" ");
-            reader.close();
-            long utime = Long.parseLong(stats[13]);  // User mode time
-            long stime = Long.parseLong(stats[14]);  // Kernel mode time
-            return utime + stime;  // Total CPU time used
-        } catch (IOException e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
+
 
 
 }

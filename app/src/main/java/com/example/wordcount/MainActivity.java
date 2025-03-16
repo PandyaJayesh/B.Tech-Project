@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.Manifest;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -24,20 +23,14 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-        btnEqual.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, EqualActivity.class);
-                startActivity(intent);
-            }
+        btnEqual.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, EqualActivity.class);
+            startActivity(intent);
         });
 
-        btnBalanced.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, BalancedActivity.class);
-                startActivity(intent);
-            }
+        btnBalanced.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, BalancedActivity.class);
+            startActivity(intent);
         });
     }
 }

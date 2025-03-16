@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android = "http://schemas.android.com/apk/res/android"
-    xmlns:tools = "http://schemas.android.com/tools"
-    android:layout_width = "match_parent"
-    android:layout_height = "match_parent"
-    android:layout_margin = "16dp"
-    tools:context = ".MasterActivity">
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_margin="16dp"
+    tools:context=".WorkerActivity">
 
     <EditText
         android:id="@+id/etIP"
@@ -28,8 +29,8 @@
 
     <Button
         android:id="@+id/btnConnect"
-        android:layout_width="wrap_content"
-        android:layout_height="96dp"
+        android:layout_width="171dp"
+        android:layout_height="94dp"
         android:layout_below="@+id/etPort"
         android:layout_gravity="center"
         android:layout_marginTop="16dp"
@@ -38,23 +39,20 @@
     <TextView
         android:id="@+id/tvMessages"
         android:layout_width="match_parent"
-        android:layout_height="136dp"
-        android:layout_below="@+id/btnConnect"/>
-<!--        android:inputType="textMultiLine"-->
-<!--        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />-->
+        android:layout_height="396dp"
+        android:layout_below="@+id/btnConnect"
+        android:layout_marginTop="0dp" />
 
-<!--        <EditText-->
-<!--            android:id="@+id/etMessage"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_above="@+id/btnSend"-->
-<!--            android:hint="@string/enter_message"-->
-<!--            android:inputType="text" />-->
-<!--        <Button-->
-<!--            android:id = "@+id/btnSend"-->
-<!--            android:layout_width = "match_parent"-->
-<!--            android:layout_height = "wrap_content"-->
-<!--            android:layout_alignParentBottom = "true"-->
-<!--            android:text = "@string/send1" />-->
+    <Button
+        android:id="@+id/btnReset"
+        android:layout_width="136dp"
+        android:layout_height="91dp"
+        android:backgroundTintMode="add"
+        android:rotationY="0"
+        android:text="@string/reset5"
+        android:translationX="195dp"
+        android:translationY="210dp" />
+
+
 </RelativeLayout>
 
