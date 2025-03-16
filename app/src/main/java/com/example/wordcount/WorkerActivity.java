@@ -4,40 +4,26 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import android.os.BatteryManager;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Looper;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 
 public class WorkerActivity extends AppCompatActivity {
 
@@ -45,8 +31,7 @@ public class WorkerActivity extends AppCompatActivity {
     EditText etIP, etPort;
     TextView tvMessages;
     Boolean connected = false;
-    EditText etMessage;
-    Button btnSend;
+    Socket socket;
     String SERVER_IP;
     int SERVER_PORT;
     OutputStream output;
@@ -65,57 +50,69 @@ public class WorkerActivity extends AppCompatActivity {
 
         Button btnConnect = findViewById(R.id.btnConnect);
 
-        btnConnect.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        Button btnReset = findViewById(R.id.btnReset);
 
-                tvMessages.setText("");
-                SERVER_IP = etIP.getText().toString().trim();
-                SERVER_PORT = Integer.parseInt(etPort.getText().toString().trim());
+        btnReset.setOnClickListener(v -> restartApp());
 
-                connectToServer();
+        btnConnect.setOnClickListener(v -> {
 
-                btnConnect.setEnabled(false);
+            tvMessages.setText("");
+            SERVER_IP = etIP.getText().toString().trim();
+            SERVER_PORT = Integer.parseInt(etPort.getText().toString().trim());
+
+            connectToServer();
+
+            btnConnect.setEnabled(false);
 
 
 
-            }
         });
     }
 
 
+    public void restartApp() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+                socket = null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
+        // Restart the activity
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
+    }
 
 
     private void connectToServer() {
-        Thread1 = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Ensure Wi-Fi is connected
-                    if (!isWiFiConnected()) {
-                        runOnUiThread(() -> tvMessages.append("Please connect to Wi-Fi before starting.\n"));
-                        return;
-                    }
-
-                    // Try connecting to the server
-                    Socket socket = new Socket(SERVER_IP, SERVER_PORT);
-                    output = socket.getOutputStream();
-                    input = socket.getInputStream();
-
-                    // Ensure UI updates work
-                    Looper.prepare();
-                    runOnUiThread(() -> {
-                        tvMessages.setText("Connected ");
-                        connected = true;
-                    });
-
-                    // Start listening for incoming files from the server
-                    receiveFileFromServer(socket);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    runOnUiThread(() -> tvMessages.append("Connection failed: " + e.getMessage() + "\n"));
+        Thread1 = new Thread(() -> {
+            try {
+                // Ensure Wi-Fi is connected
+                if (!isWiFiConnected()) {
+                    runOnUiThread(() -> tvMessages.append("Please connect to Wi-Fi before starting.\n"));
+                    return;
                 }
+
+                // Try connecting to the server
+                socket = new Socket(SERVER_IP, SERVER_PORT);
+                output = socket.getOutputStream();
+                input = socket.getInputStream();
+
+                // Ensure UI updates work
+                Looper.prepare();
+                runOnUiThread(() -> {
+                    tvMessages.setText("Connected ");
+                    connected = true;
+                });
+
+                // Start listening for incoming files from the server
+                receiveFileFromServer(socket);
+            } catch (IOException e) {
+                e.printStackTrace();
+                runOnUiThread(() -> tvMessages.append("Connection failed: " + e.getMessage() + "\n"));
             }
         });
         Thread1.start();

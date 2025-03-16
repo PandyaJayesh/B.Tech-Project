@@ -6,6 +6,10 @@ import android.os.BatteryManager;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class Helpers {
 
@@ -24,7 +28,11 @@ public class Helpers {
         return energy / 1_000_000.0f; // Convert µJ to J (microjoules to joules)
     }
 
-
+    static String getCurrentTimeUTC() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return sdf.format(new Date());
+    }
     static long getProcessCpuTime() {
         try {
             BufferedReader reader = new BufferedReader(new FileReader("/proc/self/stat"));

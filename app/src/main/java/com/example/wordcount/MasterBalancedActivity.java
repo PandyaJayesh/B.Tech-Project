@@ -1,27 +1,20 @@
 package com.example.wordcount;
 
-import android.Manifest;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -30,6 +23,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
@@ -39,6 +33,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -47,7 +42,12 @@ public class MasterBalancedActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_STORAGE_PERMISSION = 1;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor(); // ExecutorService for background tasks
     ServerSocket serverSocket;
+    ServerSocket resultServerSocket;
     Thread Thread1 = null;
+
+    private final Map<Socket, Thread2> clientThreads = new HashMap<>();
+
+    Thread Thread2 = null;
     TextView tvIP, tvPort;
     TextView tvMessages;
     EditText etMessage;
@@ -74,40 +74,18 @@ public class MasterBalancedActivity extends AppCompatActivity {
         Thread1 = new Thread(new Thread1());
         Thread1.start();
 
-        btnReset.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                restartApp();
-            }
-        });
+        btnReset.setOnClickListener(v -> restartApp());
 
-        btnSend.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
-                executorService.execute(() -> sendFileToClients(fileName));
+        btnSend.setOnClickListener(v -> {
+            String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
+            executorService.execute(() -> sendFileToClients(fileName));
 
 //                if (checkAndRequestPermissions()) {
 //                   String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
 //                  executorService.execute(() -> sendFileToClients(fileName));
 //                }
-            }
         });
 
-    }
-
-    private boolean checkAndRequestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED ||
-                    ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{
-                        Manifest.permission.READ_EXTERNAL_STORAGE,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                }, REQUEST_CODE_STORAGE_PERMISSION);
-                return false;
-            }
-        }
-        return true;
     }
 
     @Override
@@ -123,12 +101,46 @@ public class MasterBalancedActivity extends AppCompatActivity {
     }
 
     public void restartApp() {
-        Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-        int pendingIntentId = 123456;
-        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), pendingIntentId, intent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
-        alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 100, pendingIntent);
-        System.exit(0);
+        try {
+            for (Socket socket : clientSockets) {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            }
+            clientSockets.clear(); // Clear the list
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+                serverSocket = null;
+            }
+
+            if (resultServerSocket != null && !resultServerSocket.isClosed()) {
+                try {
+                    resultServerSocket.close();
+                    Log.d("MASTER", " Closed server socket.");
+                } catch (IOException e) {
+                    Log.e("MASTER", "⚠️ Error closing server socket: " + e.getMessage());
+                }
+                resultServerSocket = null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
+
+
+    //  Small delay to ensure proper cleanup before restart
+    try {
+        Thread.sleep(500); // 500ms delay
+    } catch (InterruptedException e) {
+        Log.e("MASTER", "⚠️ Sleep interrupted: " + e.getMessage());
+    }
+
+        // Restart the activity
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
     }
 
 
@@ -170,22 +182,12 @@ public class MasterBalancedActivity extends AppCompatActivity {
         }
 
 
-        long sendEndTime = System.currentTimeMillis();
-        long sendEndCpuTime = Helpers.getProcessCpuTime();
-        long sendTime = sendEndTime - sendStartTime;
-        long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
-
-        // **Receiving Word Counts**
-        long receiveStartTime = System.currentTimeMillis();
-        long receiveStartCpuTime = Helpers.getProcessCpuTime();
+        long receiveTime = System.currentTimeMillis();
+        long receiveCpuTime = Helpers.getProcessCpuTime();
+        long taskTime = receiveTime - sendStartTime;
+        long taskCpuTime = receiveCpuTime - sendStartCpuTime;
 
 
-
-
-        long receiveEndTime = System.currentTimeMillis();
-        long receiveEndCpuTime = Helpers.getProcessCpuTime();
-        long receiveTime = receiveEndTime - receiveStartTime;
-        long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
 
         // **Final Stats**
         long totalEndTime = System.currentTimeMillis();
@@ -199,8 +201,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
         runOnUiThread(() -> {
             tvMessages.append("\n--- Master Performance Metrics ---\n");
             tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuTime + " ms\n");
-            tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
-            tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
+            tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTime + " ms\n");
             tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
             tvMessages.append("Battery Used: " + batteryUsed + "%\n");
         });
@@ -218,6 +219,12 @@ public class MasterBalancedActivity extends AppCompatActivity {
             runOnUiThread(() -> tvMessages.append("File not found: " + subfileName + "\n"));
             return;
         }
+
+
+//        if (clientThreads.containsKey(clientSocket)) {
+//            Objects.requireNonNull(clientThreads.get(clientSocket)).stopThread();
+//            //clientThreads.remove(clientSocket);
+//        }
 
         byte[] buffer = new byte[10000];
         FileInputStream fis = new FileInputStream(file);
@@ -237,15 +244,67 @@ public class MasterBalancedActivity extends AppCompatActivity {
         dos.flush();
         bis.close();
 
-        // **🔹 NEW: Read the response from the Worker**
-        DataInputStream dis = new DataInputStream(clientSocket.getInputStream());
-        String workerResponse = dis.readUTF();  // Read message from worker
-
         runOnUiThread(() -> tvMessages.append("File sent to client: "
-                + clientSocket.getInetAddress().getHostAddress() + "\n"
-                + "Worker Response: " + workerResponse + "\n"));
+                + clientSocket.getInetAddress().getHostAddress() + "\n"));
+        // ** NEW: Read the response from the Worker**
+
+//        Log.d("MASTER", "Waiting for response from: " + clientSocket.getInetAddress().getHostAddress());
+//        Log.d("MASTER", "time: " + Helpers.getCurrentTimeUTC());
+//        DataInputStream dis = new DataInputStream(clientSocket.getInputStream());
+//        String workerResponse = dis.readUTF();  // Read message from worker
+
+        receiveResultsFromWorker(clientSocket);
+
 
     }
+    private void startResultListener(Socket workerSocket) {
+        new Thread(() -> {
+            try {
+                resultServerSocket = new ServerSocket(5001);  // Listen on new port
+                Log.d("MASTER", "🟢 Waiting for results on port 5001...");
+
+                while (true) {
+                    Socket resultSocket = resultServerSocket.accept();  // Accept incoming connection
+                    new Thread(() -> handleWorkerResults(resultSocket,workerSocket)).start();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                Log.e("MASTER", "🚨 Error in result listener: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void handleWorkerResults(Socket resultSocket,Socket workerSocket) {
+        try {
+            DataInputStream dis = new DataInputStream(resultSocket.getInputStream());
+            Log.d("MASTER", "🔸 Waiting to receive from Worker...");
+
+            String workerResults = dis.readUTF();  // Read result from Worker
+            Log.d("MASTER", "✅ Received from Worker: " + workerResults);
+            runOnUiThread(() -> tvMessages.append("Worker response: "
+                    + workerResults + "\n"));
+            // 🔹 Send acknowledgment back
+            DataOutputStream dos = new DataOutputStream(resultSocket.getOutputStream());
+            dos.writeUTF("ACK");
+            dos.flush();
+            Log.d("MASTER", "✅ Sent acknowledgment to Worker");
+
+            resultSocket.close();  // Close the result socket
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.e("MASTER", "🚨 Error receiving results: " + e.getMessage());
+        }
+    }
+
+
+    private void receiveResultsFromWorker(Socket workerSocket) {
+        startResultListener(workerSocket);
+    }
+
+
+
+
+
 
     private String getLocalIpAddress() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
@@ -277,86 +336,90 @@ public class MasterBalancedActivity extends AppCompatActivity {
         return "No IPv4 Address";
     }
 
-    private BufferedReader input;
-
     class Thread1 implements Runnable {
         @Override
         public void run() {
             Socket socket;
             try {
                 serverSocket = new ServerSocket(SERVER_PORT);
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        tvMessages.setText("Not connected");
-                        tvIP.setText("IP: " + SERVER_IP);
-                        tvPort.setText("Port: " + String.valueOf(SERVER_PORT));
-                    }
+                runOnUiThread(() -> {
+                    tvMessages.setText("Not connected");
+                    tvIP.setText("IP: " + SERVER_IP);
+                    tvPort.setText("Port: " + String.valueOf(SERVER_PORT));
                 });
 
                 while (true) {
                     socket = serverSocket.accept();
                     if (clientSockets.add(socket)) {
                         // New client connected
-                        updateClientCountUI(clientSockets.size()); // Update UI with client count
-                        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
-                        input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                tvMessages.setText("Connected clients: " + clientSockets.size() + "\n"); // Update UI message
-                            }
+                        runOnUiThread(() -> tvMessages.setText("Connected clients: " + clientSockets.size() + "\n"));
+                        //updateClientCountUI(clientSockets.size()); // Update UI with client count
+                        BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        runOnUiThread(() -> {
+                            tvMessages.setText("Connected clients: " + clientSockets.size() + "\n"); // Update UI message
                         });
-                        new Thread(new Thread2()).start(); // Pass socket to Thread2
+
+                        Thread2 clientThread = new Thread2(socket);
+                        clientThreads.put(socket, clientThread);
+                        new Thread(clientThread).start();
+
+//                        new Thread(new Thread2()).start(); // Pass socket to Thread2
                     }
                 }
 
             } catch (IOException e) {
+
                 e.printStackTrace();
+                runOnUiThread(() -> tvMessages.append("Server error: " + e.getMessage() + "\n"));
             }
         }
+
+
+
     }
 
-    private void updateClientCountUI(int count) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                tvMessages.setText("Connected clients: " + count + "\n");
-            }
-        });
-    }
+//    private void updateClientCountUI(int count) {
+//
+//    }
 
     private class Thread2 implements Runnable {
+        private final Socket clientSocket;
+        private volatile boolean running = true;
+
+        public void stopThread() {
+            running = false;
+//            try {
+//                clientSocket.close(); // Close socket to unblock readLine()
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+        }
+
+        public Thread2(Socket socket) {
+            this.clientSocket = socket;
+        }
+
         @Override
         public void run() {
             try {
+                BufferedReader input = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 String message;
                 while ((message = input.readLine()) != null) {
-                    // Extract speed and IP from the message
+                    // Extract Speed and IP
                     if (message.contains("Speed:") && message.contains("IP:")) {
-                        // Use regex or substring to extract the values
                         String speed = extractSpeed(message);
                         String ipAddress = extractIp(message);
-
-                        // Store the extracted values in a HashMap with IP as key and Speed as value
                         computingCapacity.put(ipAddress, Double.parseDouble(speed));
 
-                        // Optionally, print or log the extracted data
                         Log.d("SERVER", "Extracted Speed: " + speed + ", IP: " + ipAddress);
-
-                        // Update the UI with the received message
-                        final String receivedMessage = "Speed: " + speed + ", IP: " + ipAddress;
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                tvMessages.append(receivedMessage + "\n");
-                            }
-                        });
+                        runOnUiThread(() -> tvMessages.append("Speed: " + speed + ", IP: " + ipAddress + "\n"));
                     }
                 }
+                input.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            Log.d("SERVER", "Thread2 end \n" );
         }
 
         // Method to extract the speed from the message

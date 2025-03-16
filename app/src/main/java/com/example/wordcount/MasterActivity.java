@@ -1,8 +1,6 @@
 package com.example.wordcount;
 
 import android.Manifest;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -130,13 +128,28 @@ public class MasterActivity extends AppCompatActivity {
 
 
     public void restartApp() {
-        Intent intent = new Intent(getApplicationContext(), MasterActivity.class);
-        int pendingIntentId = 123456;
-        PendingIntent pendingIntent = PendingIntent.getActivity(getApplicationContext(), pendingIntentId, intent, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
-        alarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 100, pendingIntent);
-        System.exit(0);
+        try {
+            for (Socket socket : clientSockets) {
+                if (socket != null && !socket.isClosed()) {
+                    socket.close();
+                }
+            }
+            clientSockets.clear(); // Clear the list
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+                serverSocket = null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Restart the activity
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
     }
+
+
 
     private void sendFileToClients(String fileName) {
         long totalStartTime = System.currentTimeMillis();
@@ -180,21 +193,11 @@ public class MasterActivity extends AppCompatActivity {
         }
 
 
-        long sendEndTime = System.currentTimeMillis();
-        long sendEndCpuTime = Helpers.getProcessCpuTime();
-        long sendTime = sendEndTime - sendStartTime;
-        long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
+        long receiveTime = System.currentTimeMillis();
+        long receiveCpuTime = Helpers.getProcessCpuTime();
+        long taskTime = receiveTime - sendStartTime;
+        long taskCpuTime = receiveCpuTime - sendStartCpuTime;
 
-        // **Receiving Word Counts**
-        long receiveStartTime = System.currentTimeMillis();
-        long receiveStartCpuTime = Helpers.getProcessCpuTime();
-
-
-
-        long receiveEndTime = System.currentTimeMillis();
-        long receiveEndCpuTime = Helpers.getProcessCpuTime();
-        long receiveTime = receiveEndTime - receiveStartTime;
-        long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
 
         // **Final Stats**
         long totalEndTime = System.currentTimeMillis();
@@ -203,18 +206,14 @@ public class MasterActivity extends AppCompatActivity {
 
         long totalTime = totalEndTime - totalStartTime;
         long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-        float batteryUsed;
-        if(batteryEnd == -1 || batteryStart == -1) batteryUsed = -1;
-        else {
-            batteryUsed = batteryStart - batteryEnd;
-        }
+        float batteryUsed = batteryStart - batteryEnd;
+
 
 
         runOnUiThread(() -> {
             tvMessages.append("\n--- Master Performance Metrics ---\n");
             tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuTime + " ms\n");
-            tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
-            tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
+            tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTime + " ms\n");
             tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
             tvMessages.append("Battery Used: " + batteryUsed + "%\n");
         });
@@ -246,14 +245,13 @@ public class MasterActivity extends AppCompatActivity {
         }
         dos.flush();
         bis.close();
-
+        runOnUiThread(() -> tvMessages.append("File sent to client: "
+                + clientSocket.getInetAddress().getHostAddress() + "\n"));
         // **🔹 NEW: Read the response from the Worker**
         DataInputStream dis = new DataInputStream(clientSocket.getInputStream());
         String workerResponse = dis.readUTF();  // Read message from worker
 
-        runOnUiThread(() -> tvMessages.append("File sent to client: "
-                + clientSocket.getInetAddress().getHostAddress() + "\n"
-                + "Worker Response: " + workerResponse + "\n"));
+        runOnUiThread(() -> tvMessages.append( "Worker Response: " + workerResponse + "\n"));
         String[] parts = workerResponse.split(" ");
         return Long.parseLong(parts[3]); // Extract the 4th word (index 3)
     }

@@ -1,10 +1,15 @@
 package com.example.wordcount;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Context;
+import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
@@ -23,13 +28,19 @@ import java.net.Socket;
 public class WorkerBalancedActivity extends AppCompatActivity {
 
     Thread Thread1 = null;
+
+    Socket socket;
     EditText etIP, etPort;
+    OutputStream outputStream = null;
+    OutputStream output;
+    Socket resultSocket;
     TextView tvMessages;
     Boolean connected = false;
     String SERVER_IP;
     int SERVER_PORT;
-    DataOutputStream dos , dosSpeed;  // Use DataOutputStream instead of WriterOutputStream
-    DataInputStream dis , disSpeed;  // Keep using DataInputStream for reading input stream
+    DataOutputStream dos;
+    DataOutputStream dosSpeed;  // Use DataOutputStream instead of WriterOutputStream
+    DataInputStream dis;
     public static String LOCAL_IP = "";
 
 
@@ -44,22 +55,62 @@ public class WorkerBalancedActivity extends AppCompatActivity {
         LOCAL_IP = getLocalIpAddress();
         Button btnConnect = findViewById(R.id.btnConnectwb);
 
+        Button btnReset = findViewById(R.id.btnResetwb);
+
+        btnReset.setOnClickListener(v -> restartApp());
+
         btnConnect.setOnClickListener(v -> {
-            tvMessages.setText("");
+            runOnUiThread(() -> { tvMessages.setText("");});
             SERVER_IP = etIP.getText().toString().trim();
             SERVER_PORT = Integer.parseInt(etPort.getText().toString().trim());
             connectToServer();
             btnConnect.setEnabled(false);
         });
     }
+    private boolean isWiFiConnected() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        if (cm == null) {
+            return false;
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            // For Android 6+ (API 23+)
+            Network network = cm.getActiveNetwork();
+            if (network == null) {
+                return false;
+            }
+            NetworkCapabilities capabilities = cm.getNetworkCapabilities(network);
+            return capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+        } else {
+            // For older Android versions (Below API 23)
+            NetworkInfo networkInfo = cm.getActiveNetworkInfo();
+            return networkInfo != null && networkInfo.getType() == ConnectivityManager.TYPE_WIFI;
+        }
+    }
     private void connectToServer() {
         Thread1 = new Thread(() -> {
-            try (Socket socket = new Socket(SERVER_IP, SERVER_PORT)) {
-                OutputStream outputStream = socket.getOutputStream();
+            try  {
+                if (!isWiFiConnected()) {
+                    runOnUiThread(() -> tvMessages.append("Please connect to Wi-Fi before starting.\n"));
+                    return;
+                }
+                socket = new Socket(SERVER_IP, SERVER_PORT);
+                output = socket.getOutputStream();
+
+                try {
+                    outputStream = socket.getOutputStream();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
                 dos = new DataOutputStream(outputStream);  // Use DataOutputStream
-                dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+                try {
+                    dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
                 dosSpeed = new DataOutputStream(outputStream);  // Use DataOutputStream
-                disSpeed = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+
 
                 runOnUiThread(() -> {
                     tvMessages.setText("Connected \n");
@@ -81,23 +132,47 @@ public class WorkerBalancedActivity extends AppCompatActivity {
         Thread1.start();
     }
 
+    public void restartApp() {
+        try {
+            if (socket != null && !socket.isClosed()) {
+                socket.close();
+                socket = null;
+            }
+            if (resultSocket != null && !resultSocket.isClosed()) {
+                try {
+                    resultSocket.close();
+                    Log.d("WORKER", " Closed client socket.");
+                } catch (IOException e) {
+                    Log.e("WORKER", "⚠️ Error closing client socket: " + e.getMessage());
+                }
+                resultSocket = null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Restart the activity
+        Intent intent = getIntent();
+        finish();
+        startActivity(intent);
+    }
 
     private String getLocalIpAddress() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (connectivityManager == null) {
-            tvMessages.append("No IP Address.\n");
+            runOnUiThread(() -> tvMessages.append("No IP Address.\n"));
             return "No Network";
         }
 
         Network network = connectivityManager.getActiveNetwork();
         if (network == null) {
-            tvMessages.append("No IP Address.\n");
+            runOnUiThread(() -> tvMessages.append("No IP Address.\n"));
             return "No Network";
         }
 
         LinkProperties linkProperties = connectivityManager.getLinkProperties(network);
         if (linkProperties == null) {
-            tvMessages.append("No IP Address.\n");
+            runOnUiThread(() -> tvMessages.append("No IP Address.\n"));
             return "No IP Address";
 
         }
@@ -108,7 +183,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 return address.getHostAddress();  // IPv4 address
             }
         }
-        tvMessages.append("No IP Address.\n");
+        runOnUiThread(() -> tvMessages.append("No IP Address.\n"));
         return "No IPv4 Address";
     }
     private void measureAndSendComputationSpeed() {
@@ -221,7 +296,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
 
 
                 // Send results back to server
-                sendResultsToServer(wordCountResult, processCpuTime);
+                sendResultsToServer(wordCountResult, processCpuTime,socket.getInetAddress().getHostAddress());
 
                 long sendEndTime = System.currentTimeMillis();
                 long sendEndCpuTime = Helpers.getProcessCpuTime();
@@ -258,16 +333,40 @@ public class WorkerBalancedActivity extends AppCompatActivity {
 
 
 
-    private void sendResultsToServer(int wordCountResult, long computationTime) {
-        try {
-            String results = "Word Count: " + wordCountResult + ", Time: " + computationTime + " ms";
-            dos.write(results.getBytes());  // Send the results after processing the file
-            dos.flush();
-            Log.d("CLIENT", "Results sent to server: " + results);
-        } catch (IOException e) {
-            e.printStackTrace();
-            Log.e("CLIENT", "Error sending results: " + e.getMessage());
-        }
+    private void sendResultsToServer(int wordCountResult, long computationTime, String masterIP) {
+        new Thread(() -> {
+            try {
+                // 🔹 Connect to Master on port 5001 for results
+                resultSocket = new Socket(masterIP, 5001);
+                DataOutputStream dos = new DataOutputStream(resultSocket.getOutputStream());
+
+                // 🔹 Send results
+                String results = "Word Count: " + wordCountResult + ", Time: " + computationTime + " ms";
+                Log.d("WORKER", "🔸 Connecting to Master on port 5001...");
+                dos.writeUTF(results);
+                dos.flush();
+                Log.d("WORKER", "✅ Results sent to server: " + results);
+
+                // 🔹 Wait for Master acknowledgment
+                DataInputStream dis = new DataInputStream(resultSocket.getInputStream());
+                Log.d("WORKER", "🔹 Waiting for ACK from Master...");
+                String ack = dis.readUTF();
+                Log.d("WORKER", "✅ Acknowledgment received from Master: " + ack);
+
+                resultSocket.close();  // Close the result socket
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                Log.e("WORKER", "🚨 Error sending results: " + e.getMessage());
+            }
+        }).start();
     }
+
+
+
+
+
+
+
 
 }
