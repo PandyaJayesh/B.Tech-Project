@@ -235,7 +235,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
     private void receiveFileFromServer() {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
-        float batteryStart = Helpers.getBatteryLevel(this);
+        float startCurrent = Helpers.getBatteryCurrentNow(this);
         try {
             long receiveStartTime = System.currentTimeMillis();
             long receiveStartCpuTime = Helpers.getProcessCpuTime();
@@ -288,6 +288,8 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 long processEndCpuTime = Helpers.getProcessCpuTime();
                 long processTime = processEndTime - processStartTime;
                 long processCpuTime = processEndCpuTime - processStartCpuTime;
+                double cpuUtilization = Helpers.calculateCPUUtilization(processTime,processCpuTime);
+
 
                 // **Sending Result**
                 long sendStartTime = System.currentTimeMillis();
@@ -307,23 +309,23 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 // **Final Stats**
                 long totalEndTime = System.currentTimeMillis();
                 long totalEndCpuTime = Helpers.getProcessCpuTime();
-                float batteryEnd = Helpers.getBatteryLevel(this);
+                float endCurrent = Helpers.getBatteryCurrentNow(this);
 
                 long totalTime = totalEndTime - totalStartTime;
                 long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-                float batteryUsed = batteryStart - batteryEnd;
+                float batteryUsed =  Helpers.getBatteryUsage(this, startCurrent,endCurrent,totalTime);
 
                 File finalFileToUpdate = fileToUpdate;
                 runOnUiThread(() -> {
                     tvMessages.append("File received: " + finalFileToUpdate.getAbsolutePath() + "\n");
-                    tvMessages.append("Word Count: " + wordCountResult + ", Time: " + processCpuTime + " ms\n");
+                    tvMessages.append("Word Count: " + wordCountResult + ", Time: " + processCpuTime + " ms(time used by CPU)\n");
 
                     tvMessages.append("\n--- Worker Performance Metrics ---\n");
                     //tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
-                    tvMessages.append("Processing Time: " + processTime + " ms, CPU: " + processCpuTime + " ms\n");
+                    tvMessages.append("Processing Time: " + processTime + " ms, CPU: " + cpuUtilization + " %\n");
                     //tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
                     //tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
-                    tvMessages.append("Battery Used: " + batteryUsed + "%\n");
+                    tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
                 });
             }
 

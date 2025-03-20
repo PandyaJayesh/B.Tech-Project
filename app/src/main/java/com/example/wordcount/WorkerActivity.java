@@ -169,7 +169,7 @@ public class WorkerActivity extends AppCompatActivity {
     private void receiveFileFromServer(Socket socket) {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
-        float batteryStart = Helpers.getBatteryLevel(this);
+        float startCurrent = Helpers.getBatteryCurrentNow(this);
 
         try {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -193,8 +193,13 @@ public class WorkerActivity extends AppCompatActivity {
                 String fileName = dis.readUTF();
                 Log.d("CLIENT", "Receiving file: " + fileName + ", size: " + fileSize);
 
-                fileToUpdate = new File(directory, "testing.txt");
+                fileToUpdate = new File(directory, fileName);
+                Log.d("CLIENT", "Debug 1" + fileToUpdate);
                 FileOutputStream fos = new FileOutputStream(fileToUpdate);
+
+
+
+                Log.d("CLIENT", "Debug 2");
 
                 byte[] buffer = new byte[4096];
                 int bytesRead;
@@ -203,62 +208,68 @@ public class WorkerActivity extends AppCompatActivity {
                     fos.write(buffer, 0, bytesRead);
                     totalBytesRead += bytesRead;
                 }
+                Log.d("CLIENT", "Debug 3");
                 fos.close();
             }
-
+            Log.d("CLIENT", "Debug 4");
             long receiveEndTime = System.currentTimeMillis();
             long receiveEndCpuTime = Helpers.getProcessCpuTime();
             long receiveTime = receiveEndTime - receiveStartTime;
             long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
-
+            Log.d("CLIENT", "Debug 5");
             // **Processing Word Count**
             long processStartTime = System.currentTimeMillis();
             long processStartCpuTime = Helpers.getProcessCpuTime();
-
+            Log.d("CLIENT", "Debug 6");
             int ans = 0;
             if (fileToUpdate != null) {
                 WordCount wordCount = new WordCount();
                 ans = wordCount.countWords(fileToUpdate.getAbsolutePath());
             }
-
+            Log.d("CLIENT", "Debug 7");
             long processEndTime = System.currentTimeMillis();
             long processEndCpuTime = Helpers.getProcessCpuTime();
             long processTime = processEndTime - processStartTime;
             long processCpuTime = processEndCpuTime - processStartCpuTime;
+            double cpuUtilization = Helpers.calculateCPUUtilization(processTime,processCpuTime);
 
+            Log.d("CLIENT", "Debug 8");
             // **Sending Result**
             long sendStartTime = System.currentTimeMillis();
             long sendStartCpuTime = Helpers.getProcessCpuTime();
-
+            Log.d("CLIENT", "Debug 9");
             sendMessageToServer("Word Count is: " + ans + " \n");
-
+            Log.d("CLIENT", "Debug 10");
             long sendEndTime = System.currentTimeMillis();
             long sendEndCpuTime = Helpers.getProcessCpuTime();
             long sendTime = sendEndTime - sendStartTime;
             long sendCpuTime = sendEndCpuTime - sendStartCpuTime;
-
+            Log.d("CLIENT", "Debug 11");
             // **Final Stats**
             long totalEndTime = System.currentTimeMillis();
             long totalEndCpuTime = Helpers.getProcessCpuTime();
-            float batteryEnd = Helpers.getBatteryLevel(this);
-
+            float endCurrent = Helpers.getBatteryCurrentNow(this);
+            Log.d("CLIENT", "Debug 12");
             long totalTime = totalEndTime - totalStartTime;
             long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-            float batteryUsed = batteryStart - batteryEnd;
+            float batteryUsed =  Helpers.getBatteryUsage(this, startCurrent,endCurrent,totalTime);
+            Log.d("CLIENT", "Debug 13");
 
             runOnUiThread(() -> {
+
                 tvMessages.append("\n--- Worker Performance Metrics ---\n");
                 //tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
-                tvMessages.append("Processing Time: " + processTime + " ms, CPU: " + processCpuTime + " ms\n");
+                tvMessages.append("Processing Time: " + processTime + " ms, CPU: " + cpuUtilization + " %\n");
                 //tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
                 //tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
-                tvMessages.append("Battery Used: " + batteryUsed + "%\n");
+                tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
             });
+            Log.d("CLIENT", "Debug 14");
             if (fileToUpdate != null && fileToUpdate.exists()) {
                 boolean deleted = fileToUpdate.delete();
                 Log.d("CLIENT", "File deleted: " + deleted);
             }
-
+            Log.d("CLIENT", "Debug 15");
         } catch (IOException e) {
             e.printStackTrace();
             Log.e("CLIENT", "Error receiving file: " + e.getMessage());

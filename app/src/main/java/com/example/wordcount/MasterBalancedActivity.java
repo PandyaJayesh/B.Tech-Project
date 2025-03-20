@@ -84,8 +84,13 @@ public class MasterBalancedActivity extends AppCompatActivity {
         btnReset.setOnClickListener(v -> restartApp());
 
         btnSend.setOnClickListener(v -> {
+//            File file = new File(this.getExternalFilesDir(null), "testing.txt");
+//            String fileName = file.getAbsolutePath();
             String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
             executorService.execute(() -> sendFileToClients(fileName));
+
+
+
 
 //                if (checkAndRequestPermissions()) {
 //                   String fileName = Environment.getExternalStorageDirectory().getPath() + "/testing.txt";
@@ -153,7 +158,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
     private void sendFileToClients(String fileName) {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
-        float batteryStart = Helpers.getBatteryLevel(this);
+        float startCurrent = Helpers.getBatteryCurrentNow(this);
         // **Partitioning**
         long partitionStartTime = System.currentTimeMillis();
         long partitionStartCpuTime = Helpers.getProcessCpuTime();
@@ -173,6 +178,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
         long partitionEndCpuTime = Helpers.getProcessCpuTime();
         long partitionTime = partitionEndTime - partitionStartTime;
         long partitionCpuTime = partitionEndCpuTime - partitionStartCpuTime;
+
         // **Sending Files**
         long sendStartTime = System.currentTimeMillis();
         long sendStartCpuTime = Helpers.getProcessCpuTime();
@@ -199,19 +205,25 @@ public class MasterBalancedActivity extends AppCompatActivity {
         // **Final Stats**
         long totalEndTime = System.currentTimeMillis();
         long totalEndCpuTime = Helpers.getProcessCpuTime();
-        float batteryEnd = Helpers.getBatteryLevel(this);
+        float endCurrent = Helpers.getBatteryCurrentNow(this);
 
         long totalTime = totalEndTime - totalStartTime;
         long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-        float batteryUsed = batteryStart - batteryEnd;
+        float batteryUsed =  Helpers.getBatteryUsage(this, startCurrent,endCurrent,totalTime);
+
+
+        double partitionCpuUtilizaztion = Helpers.calculateCPUUtilization(partitionTime,partitionCpuTime );
+        double sendingCPUUtilizaztion = Helpers.calculateCPUUtilization(sending,sendingCPU );
+        double taskCpuTimeUtilizaztion = Helpers.calculateCPUUtilization(taskTime,taskCpuTime );
+        double  totalCpuTimeUtilizaztion = Helpers.calculateCPUUtilization(totalTime,totalCpuTime );
 
         runOnUiThread(() -> {
             tvMessages.append("\n--- Master Performance Metrics ---\n");
-            tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuTime + " ms\n");
-            tvMessages.append("Sending Time: " + sending + " ms, CPU: " + sendingCPU + " ms\n");
-            tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTime + " ms\n");
-            tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
-            tvMessages.append("Battery Used: " + batteryUsed + "%\n");
+            tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuUtilizaztion + " %\n");
+            tvMessages.append("Sending Time: " + sending + " ms, CPU: " + sendingCPUUtilizaztion + " %\n");
+            tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTimeUtilizaztion + " %\n");
+            tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTimeUtilizaztion + " %\n");
+            tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
         });
 
     }
