@@ -64,6 +64,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
     String message;
     int clientCount = 0; // Variable to track connected clients
     Set<Socket> clientSockets = new HashSet<>(); // Set to store active client sockets
+    Map<Socket, Integer> client_Sockets = new HashMap<>();
     Map<String, Double> computingCapacity = new HashMap<>();
 
 
@@ -108,12 +109,10 @@ public class MasterBalancedActivity extends AppCompatActivity {
 
     public void restartApp() {
         try {
-            for (Socket socket : clientSockets) {
-                if (socket != null && !socket.isClosed()) {
-                    socket.close();
-                }
+            for (Socket socket : client_Sockets.keySet()) {
+                System.out.println("Socket: " + socket + ", Value: " + client_Sockets.get(socket));
             }
-            clientSockets.clear(); // Clear the list
+            client_Sockets.clear(); // Clear the list
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
                 serverSocket = null;
@@ -178,9 +177,11 @@ public class MasterBalancedActivity extends AppCompatActivity {
         long sendStartTime = System.currentTimeMillis();
         long sendStartCpuTime = Helpers.getProcessCpuTime();
         int clientIndex = 0;
-        for (Socket clientSocket : clientSockets) {
+
+
+        for (Socket socket : client_Sockets.keySet()) {
             try {
-                sendSubfile(clientSocket, subfileNames.get(clientIndex));
+                sendSubfile(socket, subfileNames.get(clientIndex));
                 clientIndex++;
             } catch (IOException e) {
                 e.printStackTrace();
@@ -275,7 +276,12 @@ public class MasterBalancedActivity extends AppCompatActivity {
     private void startResultListener(Socket workerSocket) {
         new Thread(() -> {
             try {
-                resultServerSocket = new ServerSocket(5001);  // Listen on new port
+                int clientIndex = 0;
+                if (client_Sockets.containsKey(workerSocket)) {  // Check if key exists to avoid NullPointerException
+                    int value = client_Sockets.get(workerSocket);
+                    clientIndex = value;
+                }
+                resultServerSocket = new ServerSocket(5001 + clientIndex);  // Listen on new port
                 Log.d("MASTER", "🟢 Waiting for results on port 5001...");
 
                 while (true) {
@@ -362,24 +368,24 @@ public class MasterBalancedActivity extends AppCompatActivity {
                     tvIP.setText("IP: " + SERVER_IP);
                     tvPort.setText("Port: " + String.valueOf(SERVER_PORT));
                 });
-
+                Integer clientIndex = 0;
                 while (true) {
                     socket = serverSocket.accept();
-                    if (clientSockets.add(socket)) {
-                        // New client connected
-                        runOnUiThread(() -> tvMessages.setText("Connected clients: " + clientSockets.size() + "\n"));
-                        //updateClientCountUI(clientSockets.size()); // Update UI with client count
-                        BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        runOnUiThread(() -> {
-                            tvMessages.setText("Connected clients: " + clientSockets.size() + "\n"); // Update UI message
-                        });
+                    client_Sockets.put(socket,clientIndex);
+                    // New client connected
+                    runOnUiThread(() -> tvMessages.setText("Connected clients: " + client_Sockets.size() + "\n"));
+                    //updateClientCountUI(clientSockets.size()); // Update UI with client count
+                    BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    runOnUiThread(() -> {
+                        tvMessages.setText("Connected clients: " + client_Sockets.size() + "\n"); // Update UI message
+                    });
 
-                        Thread2 clientThread = new Thread2(socket);
-                        clientThreads.put(socket, clientThread);
-                        new Thread(clientThread).start();
+                    Thread2 clientThread = new Thread2(socket);
+                    clientThreads.put(socket, clientThread);
+                    new Thread(clientThread).start();
 
 //                        new Thread(new Thread2()).start(); // Pass socket to Thread2
-                    }
+
                 }
 
             } catch (IOException e) {
