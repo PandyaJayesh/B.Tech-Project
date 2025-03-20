@@ -8,8 +8,8 @@ This project implements a **distributed word count system** using **smartphones 
 The system measures **execution time, CPU usage, and battery consumption** for performance evaluation.
 
 
-**Note: 
-Please find already build apk file in app->release folder
+## Note: 
+Please find the already-built ***apk*** file in **app->release** folder.
 
 ---
 
