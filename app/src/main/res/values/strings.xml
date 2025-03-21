@@ -1,5 +1,11 @@
 <resources>
     <string name="app_name">WordCount</string>
+    <string name="app_name_equal">Equal Partition</string>
+    <string name="app_name_balanced">Balanced Partition</string>
+    <string name="app_name_me">EqualMaster</string>
+    <string name="app_name_mb">BalancedMaster</string>
+    <string name="app_name_we">EqualWorker</string>
+    <string name="app_name_wb">BalancedWorker</string>
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dashboard</string>
     <string name="title_notifications">Notifications</string>

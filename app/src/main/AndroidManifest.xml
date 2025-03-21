@@ -17,21 +17,24 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.WordCount">
         <activity
             android:name=".WorkerBalancedActivity"
+            android:label="@string/app_name_wb"
             android:exported="false" />
         <activity
             android:name=".MasterBalancedActivity"
+            android:label="@string/app_name_mb"
             android:exported="false" />
         <activity
             android:name=".BalancedActivity"
+            android:label="@string/app_name_balanced"
             android:exported="false" />
         <activity
             android:name=".EqualActivity"
+            android:label="@string/app_name_equal"
             android:exported="false" /> <!-- For Android 12+ Only -->
         <meta-data
             android:name="android.content.APP_DATA_EXTRACTION_RULES"
@@ -53,9 +56,11 @@
         </activity> <!-- MasterActivity -->
         <activity
             android:name=".MasterActivity"
+            android:label="@string/app_name_me"
             android:exported="false" /> <!-- WorkerActivity -->
         <activity
             android:name=".WorkerActivity"
+            android:label="@string/app_name_we"
             android:exported="false" />
     </application>
 
