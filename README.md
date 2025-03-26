@@ -98,6 +98,8 @@ It is inspired by:
 🎯 Contributors
 [Jayesh Pandya](https://github.com/PandyaJayesh)
 
+[Harsh mistry](https://github.com/harshmistry3172)
+
 [Prof. Kalyan Sasidhar] (Project Guide)
 🚀 Feel free to fork, contribute, or suggest improvements! 🤝
 
