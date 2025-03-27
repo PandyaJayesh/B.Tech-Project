@@ -9,6 +9,8 @@ import android.net.LinkProperties;
 import android.net.Network;
 
 import java.io.DataInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -236,6 +238,34 @@ public class MasterActivity extends AppCompatActivity {
 //            tvMessages.append("Battery start: " + startCurrent + "% " + "end: " + endCurrent + "%\n");
             tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
         });
+
+//        for(String filename :subfileNames){
+//            if (filename != null && filename.exists()) {
+//                boolean deleted = filename.delete();
+//                Log.d("CLIENT", "File deleted: " + deleted);
+//            }
+//        }
+
+
+        subfileNames.parallelStream().forEach(subfileName -> {
+            try {
+                boolean deleted = false;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    deleted = Files.deleteIfExists(Paths.get(subfileName));
+                }
+                if(deleted){
+                    Log.d("MASTER", "File deleted: " + subfileName);
+                }else{
+                    Log.d("MASTER", "File not found: " + subfileName);
+                }
+            } catch (Exception e) {
+                Log.d("MASTER", "Failed to delete: " + fileName);
+
+                e.printStackTrace();
+            }
+        });
+
+
 
 //        runOnUiThread(() -> {
 //            tvMessages.append("\n--- Master Performance Metrics ---\n");

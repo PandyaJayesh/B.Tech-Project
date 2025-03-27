@@ -6,6 +6,7 @@ import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
 import android.net.Network;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -29,6 +30,8 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -224,6 +227,24 @@ public class MasterBalancedActivity extends AppCompatActivity {
             tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTimeUtilizaztion + " %\n");
             tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTimeUtilizaztion + " %\n");
             tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
+        });
+
+        subfileNames.parallelStream().forEach(subfileName -> {
+            try {
+                boolean deleted = false;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    deleted = Files.deleteIfExists(Paths.get(subfileName));
+                }
+                if(deleted){
+                    Log.d("MASTER", "File deleted: " + subfileName);
+                }else{
+                    Log.d("MASTER", "File not found: " + subfileName);
+                }
+            } catch (Exception e) {
+                Log.d("MASTER", "Failed to delete: " + fileName);
+
+                e.printStackTrace();
+            }
         });
 
     }
