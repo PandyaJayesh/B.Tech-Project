@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.BatteryManager;
 import android.util.Log;
+import android.widget.TextView;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -82,7 +83,7 @@ public class Helpers {
         if (currentMicroAmps == 0 || currentMicroAmps == Long.MIN_VALUE) {
             return -1; // Device does not support this property
         }
-
+        Log.d("BATTERY", "current MicroAmps: " + currentMicroAmps);
         return currentMicroAmps / 1_000.0f;  // Convert from µA (microamperes) to mA (milliamperes)
     }
 
@@ -121,6 +122,7 @@ public class Helpers {
         Log.d("POWER", "endCurrent: " + endCurrent);
         Log.d("POWER", "totalTime: " + totalTime);
         Log.d("POWER", "voltage: " + voltage);
+        Log.d("POWER", "avg current: " + avgCurrent);
         float batteryUsed = (avgCurrent * voltage * timeSeconds) / 3600; // Energy in mWh
         return (float) (Math.round(batteryUsed * 1000.0) / 1000.0);
     }
@@ -133,8 +135,58 @@ public class Helpers {
         }
 
         int voltageMillivolts = batteryStatus.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 3850);
+        Log.d("BATTERY", "current voltageMillivolts: " + voltageMillivolts);
         return voltageMillivolts / 1000.0f; // Convert mV to V
     }
+
+    public static class LogThread extends Thread {
+        private static final String TAG = "LogThread";
+        private final int intervalMs;
+        private final Context context;
+        private volatile boolean running = true;
+        private final TextView tvMessages;
+        private final BatteryManager batteryManager;
+        public float powerConsumption = 0;
+        public float voltage;
+
+        public LogThread(Context context, int intervalMs, TextView tvMessages) {
+            this.context = context;
+            this.intervalMs = intervalMs;
+            this.tvMessages = tvMessages;
+            this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
+            this.voltage = getBatteryVoltage(context);
+        }
+
+        @Override
+        public void run() {
+            while (running && !Thread.currentThread().isInterrupted()) { // Ensure thread is not interrupted
+                long currentMicroAmps = batteryManager.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+                float currentMilliAmps = currentMicroAmps / 1_000.0f; // Convert from µA to mA
+
+                powerConsumption += (float) ((currentMilliAmps * voltage * intervalMs) / 3_600_000.0); // Convert to milliwatt-seconds
+
+                try {
+                    Thread.sleep(intervalMs); // Wait for the specified interval
+                } catch (InterruptedException e) {
+//                    Log.e(TAG, "Thread interrupted", e);
+                    Thread.currentThread().interrupt(); // Restore the interrupt flag
+                    running = false; // Stop the loop
+                    break; // Exit the loop
+                }
+            }
+        }
+
+
+        // Method to stop the thread safely
+        public void stopLogging() {
+            running = false;
+            powerConsumption = Math.abs(powerConsumption); // Ensure it's always positive
+            powerConsumption = Math.round(powerConsumption * 1000) / 1000.0f; // Retain 3 decimal places
+
+            interrupt();
+        }
+    }
+
 
 
 }

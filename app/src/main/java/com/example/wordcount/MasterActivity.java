@@ -52,8 +52,10 @@ public class MasterActivity extends AppCompatActivity {
     long sendingEndCPU = 0;
     long sendingCPU = 0;
     Thread Thread1 = null;
+    Helpers.LogThread logThread = null;
     TextView tvIP, tvPort;
     TextView tvMessages;
+    TextView tvConnectionStatus;
     Button btnSend;
     Button btnReset;
     public static String SERVER_IP = "";
@@ -70,6 +72,7 @@ public class MasterActivity extends AppCompatActivity {
         tvMessages = findViewById(R.id.tvMessages);
         btnSend = findViewById(R.id.btnSend);
         btnReset = findViewById(R.id.btnReser);
+        tvConnectionStatus = findViewById(R.id.tvConnectionStatus);
 
         // Request permissions at startup
         requestStoragePermissions();
@@ -78,6 +81,7 @@ public class MasterActivity extends AppCompatActivity {
 
         Thread1 = new Thread(new Thread1());
         Thread1.start();
+        logThread = new Helpers.LogThread(this, 200,tvMessages); // Print value every 0.2 seconds
 
 
         btnReset.setOnClickListener(v -> restartApp());
@@ -145,6 +149,7 @@ public class MasterActivity extends AppCompatActivity {
                     socket.close();
                 }
             }
+            logThread.stopLogging();
             clientSockets.clear(); // Clear the list
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
@@ -165,7 +170,7 @@ public class MasterActivity extends AppCompatActivity {
     private void sendFileToClients(String fileName) {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
-        float startCurrent = Helpers.getBatteryCurrentNow(this);
+        logThread.start();
 
         // **Partitioning**
         long partitionStartTime = System.currentTimeMillis();
@@ -192,18 +197,25 @@ public class MasterActivity extends AppCompatActivity {
         // **Sending Files**
         long sendStartTime = System.currentTimeMillis();
         long sendStartCpuTime = Helpers.getProcessCpuTime();
-
+        int client_Sockets_size = clientSockets.size();
         int clientIndex = 0;
         for (Socket clientSocket : clientSockets) {
             try {
                 sendSubfile(clientSocket, subfileNames.get(clientIndex));
                 clientIndex++;
+                int percent = (clientIndex*100)/client_Sockets_size;
+                String temp = "connected\nFile sending..... " + percent + " % ";
+                runOnUiThread(() -> {
+                    tvConnectionStatus.setText(temp);
+                });
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-
+        runOnUiThread(() -> {
+            tvConnectionStatus.setText("connected\nFile sent..... ");
+        });
         long receiveTime = System.currentTimeMillis();
         long receiveCpuTime = Helpers.getProcessCpuTime();
         long taskTime = receiveTime - sendStartTime - sending;
@@ -213,15 +225,11 @@ public class MasterActivity extends AppCompatActivity {
         // **Final Stats**
         long totalEndTime = System.currentTimeMillis();
         long totalEndCpuTime = Helpers.getProcessCpuTime();
-        float endCurrent = Helpers.getBatteryCurrentNow(this);
-
 
 
         long totalTime = totalEndTime - totalStartTime;
         long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-
-
-        float batteryUsed =  Helpers.getBatteryUsage(this, startCurrent,endCurrent,totalTime);
+        logThread.stopLogging();
 
         double partitionCpuUtilizaztion = Helpers.calculateCPUUtilization(partitionTime,partitionCpuTime );
         double sendingCPUUtilizaztion = Helpers.calculateCPUUtilization(sending,sendingCPU );
@@ -235,8 +243,7 @@ public class MasterActivity extends AppCompatActivity {
             tvMessages.append("Sending Time: " + sending + " ms, CPU: " + sendingCPUUtilizaztion + " %\n");
             tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTimeUtilizaztion + " %\n");
             tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTimeUtilizaztion + " %\n");
-//            tvMessages.append("Battery start: " + startCurrent + "% " + "end: " + endCurrent + "%\n");
-            tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
+            tvMessages.append("Battery Used: " + logThread.powerConsumption + " mWh\n");
         });
 
 //        for(String filename :subfileNames){
@@ -264,17 +271,6 @@ public class MasterActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
         });
-
-
-
-//        runOnUiThread(() -> {
-//            tvMessages.append("\n--- Master Performance Metrics ---\n");
-//            tvMessages.append("Partition Time: " + partitionTime + " ms, CPU: " + partitionCpuTime + " ms\n");
-//            tvMessages.append("Sending Time: " + sending + " ms, CPU: " + sendingCPU + " ms\n");
-//            tvMessages.append("Task Time: " + taskTime + " ms, CPU: " + taskCpuTime + " ms\n");
-//            tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
-//            tvMessages.append("Battery Used: " + batteryUsed + "%\n");
-//        });
 
     }
 
@@ -326,19 +322,19 @@ public class MasterActivity extends AppCompatActivity {
     private String getLocalIpAddress() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         if (connectivityManager == null) {
-            tvMessages.append("No IP Address.\n");
+            tvConnectionStatus.append("No IP Address.\n");
             return "No Network";
         }
 
         Network network = connectivityManager.getActiveNetwork();
         if (network == null) {
-            tvMessages.append("No IP Address.\n");
+            tvConnectionStatus.append("No IP Address.\n");
             return "No Network";
         }
 
         LinkProperties linkProperties = connectivityManager.getLinkProperties(network);
         if (linkProperties == null) {
-            tvMessages.append("No IP Address.\n");
+            tvConnectionStatus.append("No IP Address.\n");
             return "No IP Address";
 
         }
@@ -349,7 +345,7 @@ public class MasterActivity extends AppCompatActivity {
                 return address.getHostAddress();  // IPv4 address
             }
         }
-        tvMessages.append("No IP Address.\n");
+        tvConnectionStatus.append("No IP Address.\n");
         return "No IPv4 Address";
     }
 
@@ -357,13 +353,12 @@ public class MasterActivity extends AppCompatActivity {
         @Override
         public void run() {
             try {
-                tvMessages.append("Thread1 started in thread itself."+SERVER_IP+"\n");
 
                 serverSocket = new ServerSocket(SERVER_PORT);
 
                 // Move this UI update BEFORE accept() so it gets executed
                 runOnUiThread(() -> {
-                    tvMessages.setText("Not connected");
+                    tvConnectionStatus.setText("Not connected");
                     tvIP.setText("IP: " + SERVER_IP);
                     tvPort.setText("Port: " + SERVER_PORT);
                 });
@@ -372,12 +367,12 @@ public class MasterActivity extends AppCompatActivity {
                 while (true) {
                     Socket socket = serverSocket.accept(); // Blocks here until a client connects
                     if (clientSockets.add(socket)) {
-                        runOnUiThread(() -> tvMessages.setText("Connected clients: " + clientSockets.size() + "\n"));
+                        runOnUiThread(() -> tvConnectionStatus.setText("Connected clients: " + clientSockets.size() + "\n"));
                     }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                runOnUiThread(() -> tvMessages.append("Server error: " + e.getMessage() + "\n"));
+                runOnUiThread(() -> tvConnectionStatus.append("Server error: " + e.getMessage() + "\n"));
             }
         }
     }

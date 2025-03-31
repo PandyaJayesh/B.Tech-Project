@@ -11,6 +11,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
@@ -20,6 +21,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;  // Use DataOutputStream instead of WriterOutputStream
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
@@ -35,6 +37,8 @@ public class WorkerBalancedActivity extends AppCompatActivity {
     OutputStream output;
     Socket resultSocket;
     TextView tvMessages;
+    TextView tvStatus;
+    Helpers.LogThread logThread = null;
     Boolean connected = false;
     String SERVER_IP;
     int SERVER_PORT;
@@ -52,6 +56,8 @@ public class WorkerBalancedActivity extends AppCompatActivity {
         etIP = findViewById(R.id.etIPwb);
         etPort = findViewById(R.id.etPortwb);
         tvMessages = findViewById(R.id.tvMessageswb);
+        tvStatus = findViewById(R.id.tvStatuswb);
+
         LOCAL_IP = getLocalIpAddress();
         Button btnConnect = findViewById(R.id.btnConnectwb);
 
@@ -59,8 +65,11 @@ public class WorkerBalancedActivity extends AppCompatActivity {
 
         btnReset.setOnClickListener(v -> restartApp());
 
+        logThread = new Helpers.LogThread(this, 200,tvMessages);
+
         btnConnect.setOnClickListener(v -> {
-            runOnUiThread(() -> { tvMessages.setText("");});
+            runOnUiThread(() -> { tvMessages.setText("");
+                tvStatus.setText("");});
             SERVER_IP = etIP.getText().toString().trim();
             SERVER_PORT = Integer.parseInt(etPort.getText().toString().trim());
             connectToServer();
@@ -113,7 +122,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
 
 
                 runOnUiThread(() -> {
-                    tvMessages.setText("Connected \n");
+                    tvStatus.setText("Connected \nSpeed calculation....\nWait....");
                     connected = true;
                 });
 
@@ -147,6 +156,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 }
                 resultSocket = null;
             }
+            logThread.stopLogging();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -192,9 +202,30 @@ public class WorkerBalancedActivity extends AppCompatActivity {
         // Perform sample computation (e.g., word count on a dummy string)
         WordCount wordCount = new WordCount();
         String dummyText = "This is a test string for measuring computation speed.";
-        for (int i = 0; i < 1000; i++) {
-            wordCount.countWords(dummyText);
+
+
+        String fileName = "dummy_file.txt";
+        File file = new File(Environment.getExternalStorageDirectory(), fileName);
+
+        try {
+            // Write dummy string into the file
+            FileWriter writer = new FileWriter(file);
+            writer.write(dummyText);
+            writer.close();
+            for (int i = 0; i < 1000; i++) {
+                wordCount.countWords(Environment.getExternalStorageDirectory().getPath() + "/dummy_file.txt");
+                int percent = (i+1)/10;
+                String temp = "Connected \nSpeed sending...\n" + percent + " %\n";
+                tvStatus.setText(temp);
+            }
+            // Delete the file
+            if (file.exists()) {
+                file.delete();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
 
         long endTime = System.currentTimeMillis();
         long elapsedTime = endTime - startTime;
@@ -205,6 +236,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
 
         // Send speed to the server
         sendSpeedAndIPToServer(speed,LOCAL_IP);
+
     }
 
     private void sendSpeedAndIPToServer(double clientSpeed, String ipAddress) {
@@ -220,7 +252,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
             dosSpeed.write("\n".getBytes());  // Sending a newline or special separator
 
             dosSpeed.flush();  // Flush again to make sure the separator is sent immediately
-
+            tvStatus.setText("Connected \nSpeed sent...");
             // Log the sent data
             Log.d("CLIENT", "Client speed and IP sent to server: " + speedData);
         } catch (IOException e) {
@@ -235,7 +267,7 @@ public class WorkerBalancedActivity extends AppCompatActivity {
     private void receiveFileFromServer() {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
-        float startCurrent = Helpers.getBatteryCurrentNow(this);
+        logThread.start();
         try {
             long receiveStartTime = System.currentTimeMillis();
             long receiveStartCpuTime = Helpers.getProcessCpuTime();
@@ -309,11 +341,10 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 // **Final Stats**
                 long totalEndTime = System.currentTimeMillis();
                 long totalEndCpuTime = Helpers.getProcessCpuTime();
-                float endCurrent = Helpers.getBatteryCurrentNow(this);
+                logThread.stopLogging();
 
                 long totalTime = totalEndTime - totalStartTime;
                 long totalCpuTime = totalEndCpuTime - totalStartCpuTime;
-                float batteryUsed =  Helpers.getBatteryUsage(this, startCurrent,endCurrent,totalTime);
 
                 File finalFileToUpdate = fileToUpdate;
                 runOnUiThread(() -> {
@@ -321,12 +352,10 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                     tvMessages.append("Word Count: " + wordCountResult + ", Time: " + processCpuTime + " ms(time used by CPU)\n");
 
                     tvMessages.append("\n--- Worker Performance Metrics ---\n");
-                    //tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
                     tvMessages.append("Processing Time: " + processTime + " ms, CPU: " + cpuUtilization + " %\n");
-                    //tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
-                    //tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
-                    tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
+                    tvMessages.append("Battery Used: " + logThread.powerConsumption + " mWh\n");
                 });
+
             }
 
             if (fileToUpdate != null && fileToUpdate.exists()) {

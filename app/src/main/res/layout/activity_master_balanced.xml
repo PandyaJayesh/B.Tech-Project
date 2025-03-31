@@ -7,13 +7,13 @@
 
     <TextView
         android:id="@+id/tvIPmb"
-        android:layout_width="265dp"
+        android:layout_width="175dp"
         android:layout_height="46dp"
         android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />
 
     <TextView
         android:id="@+id/tvPortmb"
-        android:layout_width="266dp"
+        android:layout_width="175dp"
         android:layout_height="42dp"
         android:layout_below="@+id/tvIPmb"
         android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />
@@ -22,14 +22,15 @@
 <!--        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />-->
 
     <!-- Add new Button for Reset or File Action -->
-
     <TextView
         android:id="@+id/tvConnectionStatusmb"
-        android:layout_width="match_parent"
-        android:layout_height="53dp"
+        android:layout_width="328dp"
+        android:layout_height="wrap_content"
         android:layout_below="@+id/tvPortmb"
-        android:layout_marginTop="1dp"
-        android:textAppearance="@style/Base.TextAppearance.AppCompat.Medium" />
+        android:layout_alignParentStart="false"
+        android:layout_alignParentEnd="false"
+        android:layout_marginStart="0dp"
+        android:layout_marginTop="10dp" />
 
     <TextView
         android:id="@+id/tvMessagesmb"
@@ -37,6 +38,8 @@
         android:layout_height="293dp"
         android:layout_below="@+id/tvConnectionStatusmb"
         android:layout_marginTop="3dp" />
+
+
 
     <Button
         android:id="@+id/btnSendmb"

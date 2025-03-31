@@ -30,10 +30,12 @@ public class WorkerActivity extends AppCompatActivity {
     Thread Thread1 = null;
     EditText etIP, etPort;
     TextView tvMessages;
+    TextView tvStatus;
     Boolean connected = false;
     Socket socket;
     String SERVER_IP;
     int SERVER_PORT;
+    Helpers.LogThread logThread = null;
     OutputStream output;
     InputStream input;
 
@@ -45,6 +47,7 @@ public class WorkerActivity extends AppCompatActivity {
         etIP = findViewById(R.id.etIP);
         etPort = findViewById(R.id.etPort);
         tvMessages = findViewById(R.id.tvMessages);
+        tvStatus = findViewById(R.id.tvStatus);
 
 
 
@@ -54,9 +57,13 @@ public class WorkerActivity extends AppCompatActivity {
 
         btnReset.setOnClickListener(v -> restartApp());
 
+        logThread = new Helpers.LogThread(this, 200,tvMessages); // Print value every 2 seconds
+
+
         btnConnect.setOnClickListener(v -> {
 
             tvMessages.setText("");
+            tvStatus.setText("");
             SERVER_IP = etIP.getText().toString().trim();
             SERVER_PORT = Integer.parseInt(etPort.getText().toString().trim());
 
@@ -79,7 +86,7 @@ public class WorkerActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        logThread.stopLogging();
         // Restart the activity
         Intent intent = getIntent();
         finish();
@@ -104,7 +111,7 @@ public class WorkerActivity extends AppCompatActivity {
                 // Ensure UI updates work
                 Looper.prepare();
                 runOnUiThread(() -> {
-                    tvMessages.setText("Connected ");
+                    tvStatus.append("Connected ");
                     connected = true;
                 });
 
@@ -170,6 +177,7 @@ public class WorkerActivity extends AppCompatActivity {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
         float startCurrent = Helpers.getBatteryCurrentNow(this);
+        logThread.start();
 
         try {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -248,6 +256,7 @@ public class WorkerActivity extends AppCompatActivity {
             // **Final Stats**
             long totalEndTime = System.currentTimeMillis();
             long totalEndCpuTime = Helpers.getProcessCpuTime();
+            logThread.stopLogging();
             float endCurrent = Helpers.getBatteryCurrentNow(this);
             Log.d("CLIENT", "Debug 12");
             long totalTime = totalEndTime - totalStartTime;
@@ -256,13 +265,9 @@ public class WorkerActivity extends AppCompatActivity {
             Log.d("CLIENT", "Debug 13");
 
             runOnUiThread(() -> {
-
                 tvMessages.append("\n--- Worker Performance Metrics ---\n");
-                //tvMessages.append("Receive Time: " + receiveTime + " ms, CPU: " + receiveCpuTime + " ms\n");
                 tvMessages.append("Processing Time: " + processTime + " ms, CPU: " + cpuUtilization + " %\n");
-                //tvMessages.append("Send Time: " + sendTime + " ms, CPU: " + sendCpuTime + " ms\n");
-                //tvMessages.append("Total Time: " + totalTime + " ms, CPU: " + totalCpuTime + " ms\n");
-                tvMessages.append("Battery Used: " + batteryUsed + " mWh\n");
+                tvMessages.append("Battery Used: " + logThread.powerConsumption + " mWh\n");
             });
             Log.d("CLIENT", "Debug 14");
             if (fileToUpdate != null && fileToUpdate.exists()) {
