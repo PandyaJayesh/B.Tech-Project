@@ -14,7 +14,7 @@
         android:autofillHints=""
         android:hint="@string/ip_address"
         android:inputType="text"
-        android:text="@string/_192_168_137_219" />
+        android:text="@string/_192_168_137_208" />
 
     <EditText
         android:id="@+id/etPortwb"

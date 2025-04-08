@@ -102,6 +102,8 @@ public class Helpers {
             long totalTimeTicks = utime + stime;  // Total CPU time in clock ticks
             totalTimeTicks += utimechild + stimechild;
             return (totalTimeTicks * 1000L) / (CLOCK_TICKS_PER_SEC*CORES);  // Convert ticks to milliseconds
+//            return (totalTimeTicks * 1000L) / CLOCK_TICKS_PER_SEC;
+
         } catch (IOException e) {
             e.printStackTrace();
             return 0;
@@ -109,9 +111,9 @@ public class Helpers {
     }
 
     static double calculateCPUUtilization(long elapsedTime, long cpuTime) {
-        if (elapsedTime == 0) return 0;  // Prevent division by zero
+        if (elapsedTime == 0) return 0;
         double utilization = ((double) cpuTime / elapsedTime) * 100;
-        return Math.round(utilization * 1000.0) / 1000.0;  // Round to 3 decimal places
+        return Math.round(utilization * 1000.0) / 1000.0;
     }
 
     public static float getBatteryUsage(Context context, float startCurrent, float endCurrent, float totalTime) {
@@ -155,6 +157,7 @@ public class Helpers {
             this.tvMessages = tvMessages;
             this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
             this.voltage = getBatteryVoltage(context);
+            powerConsumption = 0;
         }
 
         @Override

@@ -195,7 +195,9 @@ public class MasterBalancedActivity extends AppCompatActivity {
 
         for (Socket socket : client_Sockets.keySet()) {
             try {
+                Log.d("MASTER", "index of client: " + clientIndex );
                 sendSubfile(socket, subfileNames.get(clientIndex));
+                if(clientIndex == 0) startResultListener();
                 clientIndex++;
                 int percent = (clientIndex*100)/client_Sockets_size;
                 String temp = "connected\nFile sending..... " + percent + " % ";
@@ -314,24 +316,22 @@ public class MasterBalancedActivity extends AppCompatActivity {
 //        DataInputStream dis = new DataInputStream(clientSocket.getInputStream());
 //        String workerResponse = dis.readUTF();  // Read message from worker
 
-        receiveResultsFromWorker(clientSocket);
+
+
 
 
     }
-    private void startResultListener(Socket workerSocket) {
+    private void startResultListener() {
         new Thread(() -> {
             try {
-                int clientIndex = 0;
-                if (client_Sockets.containsKey(workerSocket)) {  // Check if key exists to avoid NullPointerException
-                    int value = client_Sockets.get(workerSocket);
-                    clientIndex = value;
-                }
-                resultServerSocket = new ServerSocket(5001 + clientIndex);  // Listen on new port
-                Log.d("MASTER", "🟢 Waiting for results on port 5001...");
+
+                int portnumber = 5001;
+                resultServerSocket = new ServerSocket(portnumber);  // Listen on new port
+                Log.d("MASTER", "🟢 Waiting for results on port 5001");
 
                 while (true) {
                     Socket resultSocket = resultServerSocket.accept();  // Accept incoming connection
-                    new Thread(() -> handleWorkerResults(resultSocket,workerSocket)).start();
+                    new Thread(() -> handleWorkerResults(resultSocket)).start();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -340,7 +340,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void handleWorkerResults(Socket resultSocket,Socket workerSocket) {
+    private void handleWorkerResults(Socket resultSocket) {
         try {
             DataInputStream dis = new DataInputStream(resultSocket.getInputStream());
             Log.d("MASTER", "🔸 Waiting to receive from Worker...");
@@ -363,9 +363,7 @@ public class MasterBalancedActivity extends AppCompatActivity {
     }
 
 
-    private void receiveResultsFromWorker(Socket workerSocket) {
-        startResultListener(workerSocket);
-    }
+
 
 
 

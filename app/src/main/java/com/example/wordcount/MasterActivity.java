@@ -187,6 +187,8 @@ public class MasterActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
             return;
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
 
         long partitionEndTime = System.currentTimeMillis();
@@ -194,7 +196,7 @@ public class MasterActivity extends AppCompatActivity {
         long partitionTime = partitionEndTime - partitionStartTime;
         long partitionCpuTime = partitionEndCpuTime - partitionStartCpuTime;
 
-        // **Sending Files**
+
         long sendStartTime = System.currentTimeMillis();
         long sendStartCpuTime = Helpers.getProcessCpuTime();
         int client_Sockets_size = clientSockets.size();

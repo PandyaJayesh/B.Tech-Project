@@ -267,12 +267,13 @@ public class WorkerBalancedActivity extends AppCompatActivity {
     private void receiveFileFromServer() {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
-        logThread.start();
+
         try {
             long receiveStartTime = System.currentTimeMillis();
             long receiveStartCpuTime = Helpers.getProcessCpuTime();
             // Receive number of files
             int numberOfFiles = dis.readInt();
+            logThread.start();
             Log.d("CLIENT", "Number of files to receive: " + numberOfFiles);
 
             // Receive files

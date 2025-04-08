@@ -177,7 +177,7 @@ public class WorkerActivity extends AppCompatActivity {
         long totalStartTime = System.currentTimeMillis();
         long totalStartCpuTime = Helpers.getProcessCpuTime();
         float startCurrent = Helpers.getBatteryCurrentNow(this);
-        logThread.start();
+
 
         try {
             DataInputStream dis = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -187,6 +187,7 @@ public class WorkerActivity extends AppCompatActivity {
             long receiveStartCpuTime = Helpers.getProcessCpuTime();
 
             int numberOfFiles = dis.readInt();
+            logThread.start();
             Log.d("CLIENT", "Number of files to receive: " + numberOfFiles);
 
             File directory = getExternalFilesDir(null);

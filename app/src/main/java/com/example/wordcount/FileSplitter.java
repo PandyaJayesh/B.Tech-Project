@@ -3,6 +3,7 @@ package com.example.wordcount;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -13,39 +14,139 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class FileSplitter {
 
-    public static List<String> splitTextFile(String fileName, int numberOfSubfiles) throws IOException {
+    private static final int BUFFER_SIZE = 1000; // Number of lines stored in memory at once
+
+    public static List<String> splitTextFile(String fileName, int numberOfSubfiles) throws IOException, InterruptedException {
         List<String> subfileNames = new ArrayList<>();
         File file = new File(fileName);
-        StringBuilder stringBuilder = new StringBuilder();
 
+        // Thread-safe queue to distribute lines
+        BlockingQueue<String> lineQueue = new LinkedBlockingQueue<>(BUFFER_SIZE);
+        ExecutorService writerPool = Executors.newFixedThreadPool(numberOfSubfiles);
+
+        // Create subfile writers
+        for (int i = 0; i < numberOfSubfiles; i++) {
+            String subfileName = fileName.replace(".txt", "_" + i + ".txt");
+            subfileNames.add(subfileName);
+            writerPool.execute(new FileWriterTask(subfileName, lineQueue));
+        }
+
+        // Read file and distribute lines
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                stringBuilder.append(line).append("\n");
+                lineQueue.put(line); // Blocking call ensures proper synchronization
             }
         }
 
-        String content = stringBuilder.toString();
-        int totalLength = content.length();
-        int subfileSize = totalLength / numberOfSubfiles;
-
-
+        // Signal end of processing
         for (int i = 0; i < numberOfSubfiles; i++) {
-            int startIndex = i * subfileSize;
-            int endIndex = (i == numberOfSubfiles - 1) ? totalLength : startIndex + subfileSize;
-            String subfileContent = content.substring(startIndex, endIndex);
-
-
-            // Write subfile to disk
-            String subfileName = fileName.replace(".txt", "_" + i + ".txt");
-            subfileNames.add(subfileName);
-            writeToFile(subfileName, subfileContent);
+            lineQueue.put("EOF");
         }
+
+        // Shutdown writer pool after completion
+        writerPool.shutdown();
+        writerPool.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+
         return subfileNames;
     }
+
+    static class FileWriterTask implements Runnable {
+        private final String subfileName;
+        private final BlockingQueue<String> lineQueue;
+
+        public FileWriterTask(String subfileName, BlockingQueue<String> lineQueue) {
+            this.subfileName = subfileName;
+            this.lineQueue = lineQueue;
+        }
+
+        @Override
+        public void run() {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(subfileName))) {
+                while (true) {
+                    String line = lineQueue.take();
+                    if ("EOF".equals(line)) break;  // Stop writing if EOF signal is received
+                    writer.write(line);
+                    writer.newLine();
+                }
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+//    public static List<String> splitTextFile(String fileName, int numberOfSubfiles) throws IOException {
+//        List<String> subfileNames = new ArrayList<>();
+//        File file = new File(fileName);
+//
+//        // Determine total number of lines
+//        int totalLines = countLines(file);
+//        int linesPerSubfile = (int) Math.ceil((double) totalLines / numberOfSubfiles);
+//
+//        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+//            for (int i = 0; i < numberOfSubfiles; i++) {
+//                String subfileName = fileName.replace(".txt", "_" + i + ".txt");
+//                subfileNames.add(subfileName);
+//
+//                try (BufferedWriter writer = new BufferedWriter(new FileWriter(subfileName))) {
+//                    for (int j = 0; j < linesPerSubfile; j++) {
+//                        String line = reader.readLine();
+//                        if (line == null) break;  // Stop if end of file reached
+//                        writer.write(line);
+//                        writer.newLine();
+//                    }
+//                }
+//            }
+//        }
+//        return subfileNames;
+//    }
+//
+//    private static int countLines(File file) throws IOException {
+//        int lines = 0;
+//        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+//            while (reader.readLine() != null) lines++;
+//        }
+//        return lines;
+//    }
+
+//    public static List<String> splitTextFile(String fileName, int numberOfSubfiles) throws IOException {
+//        List<String> subfileNames = new ArrayList<>();
+//        File file = new File(fileName);
+//        StringBuilder stringBuilder = new StringBuilder();
+//
+//        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                stringBuilder.append(line).append("\n");
+//            }
+//        }
+//
+//        String content = stringBuilder.toString();
+//        int totalLength = content.length();
+//        int subfileSize = totalLength / numberOfSubfiles;
+//
+//
+//        for (int i = 0; i < numberOfSubfiles; i++) {
+//            int startIndex = i * subfileSize;
+//            int endIndex = (i == numberOfSubfiles - 1) ? totalLength : startIndex + subfileSize;
+//            String subfileContent = content.substring(startIndex, endIndex);
+//
+//
+//            // Write subfile to disk
+//            String subfileName = fileName.replace(".txt", "_" + i + ".txt");
+//            subfileNames.add(subfileName);
+//            writeToFile(subfileName, subfileContent);
+//        }
+//        return subfileNames;
+//    }
 
     private static void writeToFile(String fileName, String content) throws IOException {
         try (PrintWriter writer = new PrintWriter(new FileWriter(fileName))) {
@@ -89,6 +190,7 @@ public class FileSplitter {
 
             // Handle leftover content (if any)
             File remainingFile = new File(fileName + "_remaining.txt");
+
             try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(remainingFile))) {
                 byte[] buffer = new byte[8192];
                 int bytesRead;
