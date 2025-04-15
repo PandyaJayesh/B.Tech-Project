@@ -157,50 +157,50 @@ public class FileSplitter {
     public static List<String> splitTextFileBySize(String fileName, Map<String, Double> capacities) throws IOException {
         File file = new File(fileName);
         long totalSize = file.length();
-
-        // Calculate total capacity (sum of speeds)
         double totalCapacity = capacities.values().stream().mapToDouble(Double::doubleValue).sum();
+
         List<String> subfileNames = new ArrayList<>();
+
         try (BufferedInputStream inputStream = new BufferedInputStream(new FileInputStream(file))) {
-            // Distribute file portions based on capacities
+            byte[] buffer = new byte[8192]; // 8 KB buffer
+            int bytesRead;
+            long bytesRemaining = totalSize;
 
             for (Map.Entry<String, Double> entry : capacities.entrySet()) {
                 String clientIp = entry.getKey();
                 double speed = entry.getValue();
 
-                // Calculate the portion size in bytes for this IP
-                long portionSize = (long) ((totalSize * speed) / totalCapacity);
-                File portionFile = new File(fileName + "_" + clientIp + ".txt");
+                long chunkSize = Math.round((totalSize * speed) / totalCapacity);
+                if (chunkSize > bytesRemaining) {
+                    chunkSize = bytesRemaining; // Don’t overshoot
+                }
 
-                subfileNames.add(portionFile.getAbsolutePath());
+                File outFile = new File(fileName + "_" + clientIp + ".txt");
+                subfileNames.add(outFile.getAbsolutePath());
 
-                try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(portionFile))) {
-                    long writtenBytes = 0;
-                    byte[] buffer = new byte[8192]; // 8 KB buffer
-                    int bytesRead;
-
-                    // Write up to the portion size
-                    while (writtenBytes < portionSize
-                            && (bytesRead = inputStream.read(buffer, 0, (int) Math.min(buffer.length, portionSize - writtenBytes))) != -1) {
+                try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(outFile))) {
+                    long bytesWritten = 0;
+                    while (bytesWritten < chunkSize && (bytesRead = inputStream.read(buffer, 0,
+                            (int) Math.min(buffer.length, chunkSize - bytesWritten))) != -1) {
                         outputStream.write(buffer, 0, bytesRead);
-                        writtenBytes += bytesRead;
+                        bytesWritten += bytesRead;
                     }
+                    bytesRemaining -= bytesWritten;
                 }
             }
 
-            // Handle leftover content (if any)
-            File remainingFile = new File(fileName + "_remaining.txt");
-
-            try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(remainingFile))) {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
+            // If there's still leftover content (due to rounding), dump it into the last client's file
+            if (bytesRemaining > 0 && !subfileNames.isEmpty()) {
+                File lastFile = new File(subfileNames.get(subfileNames.size() - 1));
+                try (BufferedOutputStream outputStream = new BufferedOutputStream(new FileOutputStream(lastFile, true))) {
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                    }
                 }
-                subfileNames.add(remainingFile.getAbsolutePath());
             }
         }
 
         return subfileNames;
     }
+
 }

@@ -40,6 +40,12 @@ public class WordCount {
 //            System.err.println("Error counting words: " + e.getMessage());
 //        }
 //        return wordCount;
+
+
+
+
+
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try (Stream<String> lines = Files.lines(Paths.get(filePath))) {
                 ForkJoinPool forkJoinPool = new ForkJoinPool(Runtime.getRuntime().availableProcessors());

@@ -313,14 +313,21 @@ public class WorkerBalancedActivity extends AppCompatActivity {
                 // Measure time for word count
                 WordCount wordCount = new WordCount();
 
+
+                long pThreadCpuStart = Helpers.getThreadCpuTime(logThread.tid);
+
                 long processStartTime = System.currentTimeMillis();
                 long processStartCpuTime = Helpers.getProcessCpuTime();
 
                 int wordCountResult = wordCount.countWords(fileToUpdate.getAbsolutePath());
+
+
+                long pThreadCpuEnd = Helpers.getThreadCpuTime(logThread.tid);
+                long pThreadCpu = pThreadCpuEnd - pThreadCpuStart;
                 long processEndTime = System.currentTimeMillis();
                 long processEndCpuTime = Helpers.getProcessCpuTime();
                 long processTime = processEndTime - processStartTime;
-                long processCpuTime = processEndCpuTime - processStartCpuTime;
+                long processCpuTime = processEndCpuTime - processStartCpuTime - pThreadCpu;
                 double cpuUtilization = Helpers.calculateCPUUtilization(processTime,processCpuTime);
 
 

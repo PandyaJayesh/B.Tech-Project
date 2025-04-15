@@ -227,6 +227,11 @@ public class WorkerActivity extends AppCompatActivity {
             long receiveCpuTime = receiveEndCpuTime - receiveStartCpuTime;
             Log.d("CLIENT", "Debug 5");
             // **Processing Word Count**
+
+            long pThreadCpuStart = Helpers.getThreadCpuTime(logThread.tid);
+
+
+
             long processStartTime = System.currentTimeMillis();
             long processStartCpuTime = Helpers.getProcessCpuTime();
             Log.d("CLIENT", "Debug 6");
@@ -238,8 +243,13 @@ public class WorkerActivity extends AppCompatActivity {
             Log.d("CLIENT", "Debug 7");
             long processEndTime = System.currentTimeMillis();
             long processEndCpuTime = Helpers.getProcessCpuTime();
+
+            long pThreadCpuEnd = Helpers.getThreadCpuTime(logThread.tid);
+            long pThreadCpu = pThreadCpuEnd - pThreadCpuStart;
+
+
             long processTime = processEndTime - processStartTime;
-            long processCpuTime = processEndCpuTime - processStartCpuTime;
+            long processCpuTime = processEndCpuTime - processStartCpuTime - pThreadCpu;
             double cpuUtilization = Helpers.calculateCPUUtilization(processTime,processCpuTime);
 
             Log.d("CLIENT", "Debug 8");

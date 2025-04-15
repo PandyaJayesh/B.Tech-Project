@@ -11,10 +11,6 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
-import java.util.TimeZone;
 
 public class Helpers {
 
@@ -67,11 +63,6 @@ public class Helpers {
 //        return energy / 1_000_000.0f; // Convert µJ to J (microjoules to joules)
 //    }
 
-    static String getCurrentTimeUTC() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-        return sdf.format(new Date());
-    }
     static float getBatteryCurrentNow(Context context) {
         BatteryManager batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
         if (batteryManager == null) {
@@ -94,15 +85,11 @@ public class Helpers {
             String[] stats = reader.readLine().split(" ");
             reader.close();
 
-            long utime = Long.parseLong(stats[13]);  // User mode time (in clock ticks)
-            long stime = Long.parseLong(stats[14]);  // Kernel mode time (in clock ticks)
-            long utimechild = Long.parseLong(stats[15]);  // User mode time (in clock ticks) by child process
-            long stimechild = Long.parseLong(stats[16]);  // Kernel mode time (in clock ticks) by child process
+            long utime = Long.parseLong(stats[13]);
+            long stime = Long.parseLong(stats[14]);
 
-            long totalTimeTicks = utime + stime;  // Total CPU time in clock ticks
-            totalTimeTicks += utimechild + stimechild;
-            return (totalTimeTicks * 1000L) / (CLOCK_TICKS_PER_SEC*CORES);  // Convert ticks to milliseconds
-//            return (totalTimeTicks * 1000L) / CLOCK_TICKS_PER_SEC;
+            long totalTimeTicks = utime + stime; // Only the main process's CPU time
+            return (totalTimeTicks * 1000L) / CLOCK_TICKS_PER_SEC; // Convert ticks to milliseconds
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -110,11 +97,33 @@ public class Helpers {
         }
     }
 
-    static double calculateCPUUtilization(long elapsedTime, long cpuTime) {
-        if (elapsedTime == 0) return 0;
-        double utilization = ((double) cpuTime / elapsedTime) * 100;
+    static double calculateCPUUtilization(long elapsedWallTimeMs, long cpuTimeMs) {
+        if (elapsedWallTimeMs == 0) return 0;
+
+        double utilization = ((double) cpuTimeMs / (elapsedWallTimeMs * CORES)) * 100;
+
         return Math.round(utilization * 1000.0) / 1000.0;
     }
+
+
+    static long getThreadCpuTime(int tid) {
+        try {
+            String path = "/proc/self/task/" + tid + "/stat";
+            BufferedReader reader = new BufferedReader(new FileReader(path));
+            String[] stats = reader.readLine().split(" ");
+            reader.close();
+
+            long utime = Long.parseLong(stats[13]);
+            long stime = Long.parseLong(stats[14]);
+            long totalTicks = utime + stime;
+
+            return (totalTicks * 1000L) / CLOCK_TICKS_PER_SEC; // milliseconds
+        } catch (IOException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
 
     public static float getBatteryUsage(Context context, float startCurrent, float endCurrent, float totalTime) {
         float avgCurrent = (Math.abs(startCurrent) + Math.abs(endCurrent)) / 2; // Avg current in mA
@@ -150,6 +159,7 @@ public class Helpers {
         private final BatteryManager batteryManager;
         public float powerConsumption = 0;
         public float voltage;
+        public int tid;
 
         public LogThread(Context context, int intervalMs, TextView tvMessages) {
             this.context = context;
@@ -158,6 +168,7 @@ public class Helpers {
             this.batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
             this.voltage = getBatteryVoltage(context);
             powerConsumption = 0;
+            tid = android.os.Process.myTid();
         }
 
         @Override
